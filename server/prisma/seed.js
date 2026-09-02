@@ -238,7 +238,7 @@ async function main() {
       isFeatured: true,
       quantity: 25,
       imageUrl:
-        'https://images.squarespace-cdn.com/content/v1/5f7d822f9176547c7c6697f7/1620338476648-YMNZB9MMEVFO4N9NJG1W/.Lisa+2.jpg',
+        '/images/pottery.webp',
     },
     {
       name: 'Pure Silver Filigree Turquoise Gem Ring',
@@ -334,7 +334,7 @@ async function main() {
       isFeatured: true,
       quantity: 20,
       imageUrl:
-        'https://m.media-amazon.com/images/I/71CUHQ8WAnL._AC_UF894,1000_QL80_.jpg',
+        '/images/Handcrafted Seven-Metal Singing Bowl Set.jpg',
     },
     {
       name: 'Traditional Handloom Dhaka Shawl / Stole',
@@ -350,7 +350,7 @@ async function main() {
       isFeatured: false,
       quantity: 18,
       imageUrl:
-        'https://cdn11.bigcommerce.com/s-tgrcca6nho/images/stencil/original/products/72892/157817/Blue-Handloom-Woolen-Dhaka-Shawl-with-Multicolor-Pattern-SWL-3248_157816__92812.1775128879.jpg?c=1',
+        '/images/Blue-Handloom-Woolen-Dhaka-Shawl-with-Multicolor-Pattern-SWL-3248_157816__92812.webp',
     },
     {
       name: 'Hand-Painted Traditional Bhairav Wooden Mask',
@@ -366,7 +366,7 @@ async function main() {
       isFeatured: false,
       quantity: 12,
       imageUrl:
-        'https://www.handmadeexpo.com/pics/product/33981.jpg',
+        '/images/bhairav mask.jpeg',
     },
     {
       name: 'Handcrafted Bamboo Tea Canister & Coaster Set',
@@ -382,7 +382,7 @@ async function main() {
       isFeatured: false,
       quantity: 35,
       imageUrl:
-        'https://www.kadamhaat.com/cdn/shop/files/handmade-bamboo-coasters-7917861.jpg?v=1763035510&width=900',
+        '/images/Handcrafted Bamboo Tea Canister & Coaster Set.jpeg',
     },
     {
       name: 'Pure Soft Pashmina Wool Scarf',
@@ -398,7 +398,7 @@ async function main() {
       isFeatured: true,
       quantity: 14,
       imageUrl:
-        'https://cdn11.bigcommerce.com/s-tgrcca6nho/images/stencil/original/products/72119/155046/Red-Pashmina-Shawl-with-Multicolor-Kashmiri-Floral-Patterns-SWL-3217_155045__67772.1774002721.jpg',
+        '/images/pasmina.jpeg',
     },
     {
       name: 'Handmade Nepalese Lokta Paper Notebook & Pen',

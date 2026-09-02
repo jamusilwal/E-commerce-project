@@ -71,7 +71,7 @@ const Login = () => {
               <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
               <input
                 type="email"
-                placeholder="name@example.com"
+                placeholder="Enter your email"
                 className={`w-full pl-11 pr-4 py-3 rounded-xl border ${
                   errors.email ? 'border-error ring-1 ring-error/20' : 'border-border'
                 } bg-surface text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all`}
