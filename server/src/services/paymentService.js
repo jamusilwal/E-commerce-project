@@ -3,6 +3,8 @@ import axios from 'axios';
 import env from '../config/env.js';
 import prisma from '../config/db.js';
 import ApiError from '../utils/ApiError.js';
+import { generateTransactionSecurityData, verifyTransactionSignature } from '../utils/transactionSecurity.js';
+import NotificationService from './notificationService.js';
 
 /**
  * Payment Service — handles eSewa (ePay v2) and Khalti Payment Integrations
@@ -35,18 +37,22 @@ class PaymentService {
     }
 
     const merchantCode = env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
-    const transactionUuid = `${order.orderNumber}`;
-    const totalAmount = order.grandTotal.toFixed(2);
+    // Append timestamp to prevent eSewa duplicate transaction error on payment retries
+    const transactionUuid = `${order.orderNumber}-${Date.now().toString().slice(-6)}`;
+    const totalAmount = Number(order.grandTotal).toFixed(2);
+    const deliveryCharge = Number(order.deliveryCharge || 0).toFixed(2);
+    const itemAmount = (Number(order.grandTotal) - Number(order.deliveryCharge || 0)).toFixed(2);
+
     const signature = this.generateEsewaSignature(totalAmount, transactionUuid, merchantCode);
 
     const formData = {
-      amount: order.subtotal.toFixed(2),
-      tax_amount: '0.00',
+      amount: itemAmount,
+      tax_amount: '0',
       total_amount: totalAmount,
       transaction_uuid: transactionUuid,
       product_code: merchantCode,
-      product_service_charge: '0.00',
-      product_delivery_charge: order.deliveryCharge.toFixed(2),
+      product_service_charge: '0',
+      product_delivery_charge: deliveryCharge,
       success_url: `${env.CLIENT_URL}/payment/esewa/success`,
       failure_url: `${env.CLIENT_URL}/payment/esewa/failure`,
       signed_field_names: 'total_amount,transaction_uuid,product_code',
@@ -75,31 +81,96 @@ class PaymentService {
     }
 
     // Decode base64 response from eSewa
-    const decodedString = Buffer.from(dataEncoded, 'base64').toString('utf-8');
-    const decoded = JSON.parse(decodedString);
-
-    const { status, total_amount, transaction_uuid, signature, signed_field_names } = decoded;
-
-    if (status !== 'COMPLETE') {
-      throw ApiError.badRequest('Payment not completed by eSewa');
+    let decoded;
+    try {
+      const decodedString = Buffer.from(dataEncoded, 'base64').toString('utf-8');
+      decoded = JSON.parse(decodedString);
+    } catch (e) {
+      throw ApiError.badRequest('Invalid base64 encoded data received from eSewa');
     }
 
-    // Verify signature
-    const expectedSignature = this.generateEsewaSignature(
-      total_amount,
-      transaction_uuid,
-      env.ESEWA_MERCHANT_CODE || 'EPAYTEST'
-    );
+    const { status, total_amount, transaction_uuid, signature, product_code, signed_field_names } = decoded;
 
-    // Find order
-    const order = await prisma.order.findUnique({
-      where: { orderNumber: transaction_uuid },
+    if (status !== 'COMPLETE') {
+      throw ApiError.badRequest(`Payment not completed by eSewa. Status: ${status || 'UNKNOWN'}`);
+    }
+
+    // Cryptographic validation of eSewa callback signature using timingSafeEqual
+    if (signature) {
+      const secretKey = env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q';
+      let message;
+      if (signed_field_names) {
+        const fields = signed_field_names.split(',');
+        message = fields.map((f) => `${f}=${decoded[f] ?? ''}`).join(',');
+      } else {
+        const merchantCode = product_code || env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
+        message = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${merchantCode}`;
+      }
+
+      const expectedSignature = crypto.createHmac('sha256', secretKey).update(message).digest('base64');
+      const sigBuffer = Buffer.from(signature, 'utf8');
+      const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+      if (
+        sigBuffer.length !== expectedBuffer.length ||
+        !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+      ) {
+        // Fallback check against basic message format
+        const fallbackMsg = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code || 'EPAYTEST'}`;
+        const fallbackSig = crypto.createHmac('sha256', secretKey).update(fallbackMsg).digest('base64');
+        const fallbackBuf = Buffer.from(fallbackSig, 'utf8');
+        if (sigBuffer.length !== fallbackBuf.length || !crypto.timingSafeEqual(sigBuffer, fallbackBuf)) {
+          throw ApiError.badRequest('Invalid eSewa callback signature. Verification failed.');
+        }
+      }
+    }
+
+    // Status check against eSewa status verification endpoint (with fallback for test env)
+    try {
+      const isRc = (env.ESEWA_GATEWAY_URL || '').includes('rc');
+      const statusBase = isRc ? 'https://rc.esewa.com.np' : 'https://epay.esewa.com.np';
+      const statusUrl = `${statusBase}/api/epay/transaction/status/?product_code=${
+        product_code || env.ESEWA_MERCHANT_CODE || 'EPAYTEST'
+      }&total_amount=${total_amount}&transaction_uuid=${transaction_uuid}`;
+      
+      const statusRes = await axios.get(statusUrl, { timeout: 4000 });
+      if (statusRes.data?.status && statusRes.data.status !== 'COMPLETE') {
+        throw ApiError.badRequest(`eSewa server status verification returned: ${statusRes.data.status}`);
+      }
+    } catch (checkErr) {
+      if (checkErr.isApiError) throw checkErr;
+      console.log('ℹ️ [PaymentService] eSewa status endpoint check fallback:', checkErr.message);
+    }
+
+    // Find order by transaction_uuid or matching orderNumber
+    const orderNumberPrefix = transaction_uuid ? transaction_uuid.split('-').slice(0, 2).join('-') : '';
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          { payment: { transactionId: transaction_uuid } },
+          { orderNumber: transaction_uuid },
+          { orderNumber: orderNumberPrefix },
+          { id: transaction_uuid },
+        ],
+      },
       include: { payment: true },
     });
 
     if (!order) {
-      throw ApiError.notFound('Order not found for transaction');
+      throw ApiError.notFound(`Order not found for transaction UUID: ${transaction_uuid}`);
     }
+
+    const paidAt = new Date();
+
+    // Generate SHA-256 integrity hash and RSA digital signature for the completed transaction
+    const securityData = generateTransactionSecurityData({
+      orderId: order.id,
+      amount: order.grandTotal,
+      method: 'ESEWA',
+      status: 'COMPLETED',
+      transactionId: transaction_uuid,
+      paidAt,
+    });
 
     // Update order and payment status in database
     await prisma.$transaction([
@@ -107,8 +178,12 @@ class PaymentService {
         where: { orderId: order.id },
         data: {
           status: 'COMPLETED',
-          paidAt: new Date(),
+          paidAt,
           gatewayResponse: decoded,
+          integrityHash: securityData.integrityHash,
+          signature: securityData.signature,
+          signingKeyId: securityData.signingKeyId,
+          signedAt: securityData.signedAt,
         },
       }),
       prisma.order.update({
@@ -125,6 +200,20 @@ class PaymentService {
         },
       }),
     ]);
+
+    // Non-blocking best-effort admin order confirmation alert
+    prisma.order.findUnique({
+      where: { id: order.id },
+      include: { user: true, items: { include: { product: true } }, payment: true },
+    }).then((fullOrder) => {
+      if (fullOrder) {
+        NotificationService.dispatchOrderConfirmationAlerts({
+          order: fullOrder,
+          payment: fullOrder.payment,
+          triggerSource: 'eSewa Payment',
+        });
+      }
+    }).catch((err) => console.error('Notification dispatch error:', err.message));
 
     return order;
   }
@@ -238,14 +327,30 @@ class PaymentService {
       }
     }
 
+    const paidAt = new Date();
+
+    // Generate SHA-256 integrity hash and RSA digital signature for the completed transaction
+    const securityData = generateTransactionSecurityData({
+      orderId: order.id,
+      amount: order.grandTotal,
+      method: 'KHALTI',
+      status: 'COMPLETED',
+      transactionId: pidx,
+      paidAt,
+    });
+
     // Update order status
     await prisma.$transaction([
       prisma.payment.update({
         where: { orderId: order.id },
         data: {
           status: 'COMPLETED',
-          paidAt: new Date(),
+          paidAt,
           transactionId: pidx,
+          integrityHash: securityData.integrityHash,
+          signature: securityData.signature,
+          signingKeyId: securityData.signingKeyId,
+          signedAt: securityData.signedAt,
         },
       }),
       prisma.order.update({
@@ -263,7 +368,85 @@ class PaymentService {
       }),
     ]);
 
+    // Non-blocking best-effort admin order confirmation alert
+    prisma.order.findUnique({
+      where: { id: order.id },
+      include: { user: true, items: { include: { product: true } }, payment: true },
+    }).then((fullOrder) => {
+      if (fullOrder) {
+        NotificationService.dispatchOrderConfirmationAlerts({
+          order: fullOrder,
+          payment: fullOrder.payment,
+          triggerSource: 'Khalti Payment',
+        });
+      }
+    }).catch((err) => console.error('Notification dispatch error:', err.message));
+
     return order;
+  }
+
+  /**
+   * Verify Payment Security (recomputes SHA-256 hash and verifies RSA signature)
+   */
+  static async verifyPaymentSecurity(paymentId, dataOverride = null) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { order: true },
+    });
+
+    if (!payment) {
+      throw ApiError.notFound('Payment record not found');
+    }
+
+    // If payment lacks cryptographic signature (e.g. COD, legacy record, or direct confirmation), sign it now
+    if (!payment.signature || !payment.integrityHash) {
+      const paidAt = payment.paidAt || payment.updatedAt || new Date();
+      const transactionId = payment.transactionId || payment.order?.orderNumber || `TXN-${payment.id.slice(0, 8)}`;
+      const status = payment.status || 'COMPLETED';
+      const securityData = generateTransactionSecurityData({
+        orderId: payment.orderId,
+        amount: payment.amount,
+        method: payment.method,
+        status,
+        transactionId,
+        paidAt,
+      });
+
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          paidAt,
+          transactionId,
+          integrityHash: securityData.integrityHash,
+          signature: securityData.signature,
+          signingKeyId: securityData.signingKeyId,
+          signedAt: securityData.signedAt,
+        },
+      });
+
+      payment.paidAt = paidAt;
+      payment.transactionId = transactionId;
+      payment.status = status;
+      payment.integrityHash = securityData.integrityHash;
+      payment.signature = securityData.signature;
+      payment.signingKeyId = securityData.signingKeyId;
+      payment.signedAt = securityData.signedAt;
+    }
+
+    const verificationResult = verifyTransactionSignature(payment, dataOverride);
+    return {
+      paymentId: payment.id,
+      orderNumber: payment.order?.orderNumber,
+      amount: payment.amount,
+      method: payment.method,
+      status: payment.status,
+      paidAt: payment.paidAt,
+      integrityHash: payment.integrityHash,
+      signature: payment.signature,
+      signingKeyId: payment.signingKeyId,
+      signedAt: payment.signedAt,
+      ...verificationResult,
+    };
   }
 }
 

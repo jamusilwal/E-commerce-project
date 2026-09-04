@@ -28,8 +28,8 @@ const env = {
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
 
   // eSewa
-  ESEWA_MERCHANT_CODE: process.env.ESEWA_MERCHANT_CODE,
-  ESEWA_SECRET_KEY: process.env.ESEWA_SECRET_KEY,
+  ESEWA_MERCHANT_CODE: process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST',
+  ESEWA_SECRET_KEY: process.env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q',
   ESEWA_GATEWAY_URL: process.env.ESEWA_GATEWAY_URL || 'https://rc-epay.esewa.com.np',
 
   // Khalti

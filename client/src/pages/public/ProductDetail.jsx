@@ -11,11 +11,13 @@ import {
 } from 'react-icons/hi';
 import productService from '../../services/productService';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/helpers';
 
 const ProductDetail = () => {
   const { slug } = useParams();
   const { addToCart } = useCart();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -208,23 +210,45 @@ const ProductDetail = () => {
                 </div>
               </div>
 
-              {/* Buttons */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => addToCart(product.id, quantity)}
-                  disabled={stockQuantity === 0}
-                  className="flex-1 py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl shadow-md transition-all hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <HiOutlineShoppingBag className="w-5 h-5" />
-                  Add to Cart
-                </button>
-                <button
-                  className="p-3.5 bg-surface hover:bg-primary/5 text-primary border border-border rounded-xl transition-all"
-                  title="Add to Wishlist"
-                >
-                  <HiOutlineHeart className="w-5 h-5" />
-                </button>
-              </div>
+              {/* Buttons / Admin Management Mode */}
+              {user?.role === 'ADMIN' ? (
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        <span>🛠️</span>
+                        <span>Admin Management Mode</span>
+                      </p>
+                      <p className="text-[11px] text-text-light mt-0.5">
+                        Admins track orders & manage listings. Product purchasing is restricted to customers.
+                      </p>
+                    </div>
+                    <Link
+                      to="/admin/products"
+                      className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition text-center whitespace-nowrap"
+                    >
+                      Manage in Admin Panel
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => addToCart(product.id, quantity)}
+                    disabled={stockQuantity === 0}
+                    className="flex-1 py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl shadow-md transition-all hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <HiOutlineShoppingBag className="w-5 h-5" />
+                    Add to Cart
+                  </button>
+                  <button
+                    className="p-3.5 bg-surface hover:bg-primary/5 text-primary border border-border rounded-xl transition-all"
+                    title="Add to Wishlist"
+                  >
+                    <HiOutlineHeart className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
               {/* Trust Badges */}
               <div className="grid grid-cols-3 gap-2 pt-4 text-center text-[11px] text-text-light">

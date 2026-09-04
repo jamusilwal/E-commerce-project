@@ -126,28 +126,41 @@ const Navbar = () => {
                 <HiOutlineSearch className="w-5 h-5" />
               </button>
 
-              {/* Wishlist Link */}
-              <Link
-                to="/wishlist"
-                className="p-2.5 rounded-xl text-text-light hover:text-primary hover:bg-primary/5 transition-all relative"
-                aria-label="Wishlist"
-              >
-                <HiOutlineHeart className="w-5 h-5" />
-              </Link>
+              {/* Admin Panel Quick Access or Customer Wishlist/Cart */}
+              {user?.role === 'ADMIN' ? (
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-bold transition-all border border-primary/20"
+                >
+                  <span>🛠️</span>
+                  <span className="hidden sm:inline">Admin Panel</span>
+                </Link>
+              ) : (
+                <>
+                  {/* Wishlist Link */}
+                  <Link
+                    to="/wishlist"
+                    className="p-2.5 rounded-xl text-text-light hover:text-primary hover:bg-primary/5 transition-all relative"
+                    aria-label="Wishlist"
+                  >
+                    <HiOutlineHeart className="w-5 h-5" />
+                  </Link>
 
-              {/* Cart Link */}
-              <Link
-                to="/cart"
-                className="p-2.5 rounded-xl text-text-light hover:text-primary hover:bg-primary/5 transition-all relative"
-                aria-label="Cart"
-              >
-                <HiOutlineShoppingBag className="w-5 h-5" />
-                {itemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {itemCount}
-                  </span>
-                )}
-              </Link>
+                  {/* Cart Link */}
+                  <Link
+                    to="/cart"
+                    className="p-2.5 rounded-xl text-text-light hover:text-primary hover:bg-primary/5 transition-all relative"
+                    aria-label="Cart"
+                  >
+                    <HiOutlineShoppingBag className="w-5 h-5" />
+                    {itemCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        {itemCount}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
 
               {/* User Dropdown / Auth Buttons */}
               {isAuthenticated ? (

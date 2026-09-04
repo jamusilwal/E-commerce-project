@@ -4,6 +4,7 @@ import {
   verifyEsewa,
   initiateKhalti,
   verifyKhalti,
+  verifyPaymentSecurity,
 } from '../controllers/paymentController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -16,5 +17,8 @@ router.post('/esewa/verify', verifyEsewa); // Public callback endpoint
 // Khalti endpoints
 router.post('/khalti/initiate', authenticate, initiateKhalti);
 router.post('/khalti/verify', verifyKhalti); // Public callback endpoint
+
+// Transaction Security Verification (RSA Signature + SHA-256 integrity check)
+router.post('/verify-security/:id', authenticate, verifyPaymentSecurity);
 
 export default router;

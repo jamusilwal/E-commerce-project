@@ -400,6 +400,13 @@ model Payment {
   transactionId   String?       @unique @map("transaction_id")
   gatewayResponse Json?         @map("gateway_response")
   paidAt          DateTime?     @map("paid_at")
+  
+  // Transaction Security (SHA-256 integrity hash + RSA signature)
+  integrityHash   String?       @map("integrity_hash")
+  signature       String?       @map("signature") @db.Text
+  signingKeyId    String?       @map("signing_key_id")
+  signedAt        DateTime?     @map("signed_at")
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -407,6 +414,7 @@ model Payment {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
+  @@index([integrityHash])
   @@map("payments")
 }
 

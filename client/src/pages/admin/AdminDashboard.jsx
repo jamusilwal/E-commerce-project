@@ -12,6 +12,7 @@ import {
   HiOutlineChartBar,
   HiOutlineClipboardList,
   HiOutlineTag,
+  HiOutlineCollection,
 } from 'react-icons/hi';
 import { adminService } from '../../services/dataService';
 import { formatPrice } from '../../utils/helpers';
@@ -67,10 +68,12 @@ const AdminDashboard = () => {
   ];
 
   const navLinks = [
-    { label: 'Products', to: '/admin/products', icon: HiOutlineViewGrid, desc: 'Add, edit, delete products' },
-    { label: 'All Orders', to: '/admin/orders', icon: HiOutlineClipboardList, desc: 'Track & update order status' },
-    { label: 'Approve Artisans', to: '/admin/sellers', icon: HiOutlineUsers, desc: `${stats?.pendingSellers || 0} pending applications` },
-    { label: 'Analytics', to: '/admin/analytics', icon: HiOutlineChartBar, desc: 'Sales & revenue reports' },
+    { label: 'Manage Orders', to: '/admin/orders', icon: HiOutlineClipboardList, desc: 'Track 7-step delivery & update status' },
+    { label: 'Manage Products', to: '/admin/products', icon: HiOutlineViewGrid, desc: 'Add, edit, delete craft products' },
+    { label: 'Manage Categories', to: '/admin/categories', icon: HiOutlineCollection, desc: 'Add & edit artisan categories' },
+    { label: 'Manage Users', to: '/admin/users', icon: HiOutlineUsers, desc: 'Customers, sellers & admin roles' },
+    { label: 'Payments & Proofs', to: '/admin/payments', icon: HiOutlineCurrencyDollar, desc: 'eSewa, Khalti & signed logs' },
+    { label: 'Approve Artisans', to: '/admin/sellers', icon: HiOutlineCheckCircle, desc: `${stats?.pendingSellers || 0} pending applications` },
   ];
 
   return (
@@ -83,18 +86,20 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Navigation */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           {navLinks.map((nav) => (
             <Link
               key={nav.to}
               to={nav.to}
-              className="bg-white p-5 rounded-2xl border border-border-light hover:border-primary/30 hover:shadow-card-hover transition-all group"
+              className="bg-white p-4 rounded-2xl border border-border-light hover:border-primary/30 hover:shadow-card-hover transition-all group flex flex-col justify-between"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors mb-3">
-                <nav.icon className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors mb-2.5">
+                  <nav.icon className="w-4 h-4 text-primary group-hover:text-white transition-colors" />
+                </div>
+                <p className="font-bold text-xs text-text">{nav.label}</p>
               </div>
-              <p className="font-bold text-sm text-text">{nav.label}</p>
-              <p className="text-[10px] text-text-muted mt-0.5">{nav.desc}</p>
+              <p className="text-[10px] text-text-muted mt-1 leading-tight">{nav.desc}</p>
             </Link>
           ))}
         </div>

@@ -9,6 +9,10 @@ import asyncHandler from '../utils/asyncHandler.js';
 
 // GET /api/cart
 export const getCart = asyncHandler(async (req, res) => {
+  if (req.user.role === 'ADMIN') {
+    return ApiResponse.ok(res, 'Admin has no shopping cart', { items: [], itemCount: 0, subtotal: 0 });
+  }
+
   let cart = await prisma.cart.findUnique({
     where: { userId: req.user.id },
     include: {
@@ -16,13 +20,11 @@ export const getCart = asyncHandler(async (req, res) => {
         include: {
           product: {
             include: {
-              images: { where: { isPrimary: true }, take: 1 },
-              inventory: { select: { quantity: true } },
-              seller: { select: { shopName: true } },
+              images: { take: 1 },
+              inventory: true,
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
       },
     },
   });
@@ -31,11 +33,10 @@ export const getCart = asyncHandler(async (req, res) => {
   if (!cart) {
     cart = await prisma.cart.create({
       data: { userId: req.user.id },
-      include: { items: { include: { product: true } } },
+      include: { items: true },
     });
   }
 
-  // Calculate totals
   const subtotal = cart.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -48,6 +49,10 @@ export const getCart = asyncHandler(async (req, res) => {
 
 // POST /api/cart/items
 export const addToCart = asyncHandler(async (req, res) => {
+  if (req.user.role === 'ADMIN') {
+    throw ApiError.forbidden('Administrators cannot add items to cart. Admin accounts are for management and tracking only.');
+  }
+
   const { productId, quantity = 1 } = req.body;
 
   // Verify product exists and is active

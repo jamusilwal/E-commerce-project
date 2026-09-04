@@ -100,6 +100,42 @@ export const getUsers = asyncHandler(async (req, res) => {
   });
 });
 
+// GET /api/admin/products
+export const getProducts = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 50, search, categoryId } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const where = {};
+  if (categoryId) where.categoryId = categoryId;
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        seller: { select: { id: true, shopName: true } },
+        images: { orderBy: { sortOrder: 'asc' } },
+        inventory: { select: { quantity: true, lowStockAt: true } },
+      },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return ApiResponse.ok(res, 'Admin products fetched', {
+    products,
+    pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
+  });
+});
+
 // PUT /api/admin/users/:id/toggle-active
 export const toggleUserActive = asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
@@ -189,8 +225,21 @@ export const getAllOrders = asyncHandler(async (req, res) => {
       include: {
         user: { select: { firstName: true, lastName: true, email: true } },
         items: { select: { quantity: true, total: true } },
-        payment: { select: { method: true, status: true } },
-        shipment: { select: { status: true } },
+        payment: {
+          select: {
+            id: true,
+            method: true,
+            status: true,
+            amount: true,
+            transactionId: true,
+            paidAt: true,
+            integrityHash: true,
+            signature: true,
+            signingKeyId: true,
+            signedAt: true,
+          },
+        },
+        shipment: { select: { status: true, trackingNumber: true, courierName: true } },
       },
     }),
     prisma.order.count({ where }),
@@ -307,4 +356,74 @@ export const markAllNotificationsRead = asyncHandler(async (req, res) => {
     data: { isRead: true },
   });
   return ApiResponse.ok(res, 'All notifications marked as read');
+});
+
+// GET /api/admin/payments
+export const getAllPayments = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, method, status } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const where = {};
+  if (method) where.method = method;
+  if (status) where.status = status;
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      skip,
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            grandTotal: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+    }),
+    prisma.payment.count({ where }),
+  ]);
+
+  return ApiResponse.ok(res, 'Payments fetched', {
+    payments,
+    pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
+  });
+});
+
+// Category Management
+export const createCategory = asyncHandler(async (req, res) => {
+  const { name, slug, description, icon, sortOrder } = req.body;
+  const category = await prisma.category.create({
+    data: {
+      name,
+      slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      description,
+      icon: icon || '📦',
+      sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+    },
+  });
+  return ApiResponse.created(res, 'Category created', category);
+});
+
+export const updateCategory = asyncHandler(async (req, res) => {
+  const { name, slug, description, icon, sortOrder } = req.body;
+  const category = await prisma.category.update({
+    where: { id: req.params.id },
+    data: {
+      name,
+      slug,
+      description,
+      icon,
+      sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : undefined,
+    },
+  });
+  return ApiResponse.ok(res, 'Category updated', category);
+});
+
+export const deleteCategory = asyncHandler(async (req, res) => {
+  await prisma.category.delete({ where: { id: req.params.id } });
+  return ApiResponse.ok(res, 'Category deleted');
 });

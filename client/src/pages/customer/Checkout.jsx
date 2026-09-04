@@ -339,11 +339,12 @@ const Checkout = () => {
                       : 'border-border-light hover:border-border'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center mx-auto mb-2 text-lg">
+                  <div className="w-12 h-12 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center mx-auto mb-2 text-lg shadow-sm shadow-emerald-600/30">
                     e
                   </div>
                   <p className="text-sm font-bold text-text">eSewa ePay</p>
-                  <p className="text-[10px] text-text-muted mt-1">Instant Nepalese digital wallet</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">UAT Sandbox / Live</p>
+                  <span className="inline-block mt-1 text-[9px] font-mono bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">ID: 9849511111</span>
                 </div>
 
                 {/* Khalti */}

@@ -185,36 +185,51 @@ export const createProduct = asyncHandler(async (req, res) => {
     where: { userId: req.user.id },
   });
 
-  if (!seller || seller.status !== 'APPROVED') {
-    throw ApiError.forbidden('Your seller account must be approved to add products');
+  if (!seller) {
+    throw ApiError.notFound('Seller profile not found. Please register as an artisan first.');
+  }
+
+  if (seller.status !== 'APPROVED') {
+    throw ApiError.forbidden('Your artisan account is currently under review. Products can only be listed once approved by an administrator.');
   }
 
   const {
     name, slug, description, shortDescription, materials,
     price, comparePrice, sku, categoryId, isFeatured,
     estimatedDelivery, weight, dimensions, tags, quantity,
+    images, imageUrl,
   } = req.body;
+
+  if (!name || !price || !categoryId) {
+    throw ApiError.badRequest('Product name, category, and price are required');
+  }
+
+  const generatedSlug = slug
+    ? slug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    : name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+
+  const generatedSku = sku || `HLB-${name.slice(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
   const product = await prisma.product.create({
     data: {
       sellerId: seller.id,
       categoryId,
       name,
-      slug,
-      description,
-      shortDescription,
-      materials,
+      slug: generatedSlug,
+      description: description || shortDescription || name,
+      shortDescription: shortDescription || '',
+      materials: materials || '',
       price: parseFloat(price),
       comparePrice: comparePrice ? parseFloat(comparePrice) : null,
-      sku,
+      sku: generatedSku,
       isFeatured: isFeatured || false,
-      estimatedDelivery,
+      estimatedDelivery: estimatedDelivery || '3-5 business days',
       weight: weight ? parseFloat(weight) : null,
-      dimensions,
-      tags: tags || [],
+      dimensions: dimensions || '',
+      tags: Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',').map((t) => t.trim()) : [],
       inventory: {
         create: {
-          quantity: parseInt(quantity) || 0,
+          quantity: parseInt(quantity) || 10,
         },
       },
     },
@@ -225,7 +240,31 @@ export const createProduct = asyncHandler(async (req, res) => {
     },
   });
 
-  return ApiResponse.created(res, 'Product created', product);
+  // Handle images array if provided
+  const imageList = [];
+  if (Array.isArray(images) && images.length > 0) {
+    imageList.push(...images);
+  } else if (imageUrl) {
+    imageList.push(imageUrl);
+  }
+
+  if (imageList.length > 0) {
+    await prisma.productImage.createMany({
+      data: imageList.map((img, idx) => ({
+        productId: product.id,
+        url: typeof img === 'string' ? img : img.url,
+        isPrimary: idx === 0,
+        sortOrder: idx,
+      })),
+    });
+  }
+
+  const fullProduct = await prisma.product.findUnique({
+    where: { id: product.id },
+    include: { images: true, inventory: true, category: true, seller: true },
+  });
+
+  return ApiResponse.created(res, 'Product created successfully', fullProduct);
 });
 
 // PUT /api/products/:id — seller only (own products)

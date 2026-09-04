@@ -33,3 +33,13 @@ export const verifyKhalti = asyncHandler(async (req, res) => {
   const order = await PaymentService.verifyKhalti({ pidx, orderId });
   return ApiResponse.ok(res, 'Khalti payment verified', order);
 });
+
+// POST /api/payments/verify-security/:id
+// Recomputes SHA-256 hash and verifies RSA signature.
+// Optional req.body.tamperData to demonstrate verification failure if data is modified.
+export const verifyPaymentSecurity = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { tamperData } = req.body || {};
+  const result = await PaymentService.verifyPaymentSecurity(id, tamperData);
+  return ApiResponse.ok(res, 'Payment security verification completed', result);
+});

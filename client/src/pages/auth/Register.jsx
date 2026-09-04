@@ -82,28 +82,36 @@ const Register = () => {
         </div>
 
         {/* Role Toggle */}
-        <div className="grid grid-cols-2 gap-3 mb-6 p-1 bg-surface rounded-xl border border-border">
+        <div className="grid grid-cols-3 gap-1.5 mb-6 p-1 bg-surface rounded-xl border border-border">
           <button
             type="button"
             onClick={() => setSelectedRole('CUSTOMER')}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs transition-all ${selectedRole === 'CUSTOMER'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-text-light hover:text-text'
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-semibold text-xs transition-all ${selectedRole === 'CUSTOMER'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-text-light hover:text-text'
               }`}
           >
-            <HiOutlineUser className="w-4 h-4" />
+            <HiOutlineUser className="w-3.5 h-3.5" />
             Customer
           </button>
           <button
             type="button"
             onClick={() => setSelectedRole('SELLER')}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs transition-all ${selectedRole === 'SELLER'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-text-light hover:text-text'
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-semibold text-xs transition-all ${selectedRole === 'SELLER'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-text-light hover:text-text'
               }`}
           >
-            <HiOutlineShoppingBag className="w-4 h-4" />
-            Artisan / Seller
+            <HiOutlineShoppingBag className="w-3.5 h-3.5" />
+            Artisan
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/auth/login?role=admin')}
+            className="flex items-center justify-center gap-1 py-2.5 rounded-lg font-semibold text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200"
+            title="Admins cannot register publicly. Click to Login."
+          >
+            <span>🔑 Admin</span>
           </button>
         </div>
 

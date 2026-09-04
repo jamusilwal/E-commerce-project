@@ -16,6 +16,11 @@ import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  getProducts,
+  getAllPayments,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 } from '../controllers/adminController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -26,6 +31,14 @@ router.use(authenticate, authorize('ADMIN'));
 
 // Dashboard
 router.get('/dashboard', getAdminDashboard);
+
+// Products
+router.get('/products', getProducts);
+
+// Categories
+router.post('/categories', createCategory);
+router.put('/categories/:id', updateCategory);
+router.delete('/categories/:id', deleteCategory);
 
 // Users
 router.get('/users', getUsers);
@@ -38,6 +51,9 @@ router.put('/sellers/:id/reject', rejectSeller);
 
 // Orders
 router.get('/orders', getAllOrders);
+
+// Payments
+router.get('/payments', getAllPayments);
 
 // Analytics
 router.get('/analytics', getAdminAnalytics);

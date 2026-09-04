@@ -32,6 +32,7 @@ export const paymentService = {
   verifyEsewa: (data) => api.post('/payments/esewa/verify', { data }),
   initiateKhalti: (orderId) => api.post('/payments/khalti/initiate', { orderId }),
   verifyKhalti: (pidx, orderId) => api.post('/payments/khalti/verify', { pidx, orderId }),
+  verifySecurity: (paymentId, tamperData = null) => api.post(`/payments/verify-security/${paymentId}`, { tamperData }),
 };
 
 export const reviewService = {
@@ -57,12 +58,17 @@ export const sellerService = {
 
 export const adminService = {
   getDashboard: () => api.get('/admin/dashboard'),
+  getProducts: (params) => api.get('/admin/products', { params }),
+  createCategory: (data) => api.post('/admin/categories', data),
+  updateCategory: (id, data) => api.put(`/admin/categories/${id}`, data),
+  deleteCategory: (id) => api.delete(`/admin/categories/${id}`),
   getUsers: (params) => api.get('/admin/users', { params }),
   toggleUserActive: (id) => api.put(`/admin/users/${id}/toggle-active`),
   getPendingSellers: () => api.get('/admin/sellers/pending'),
   approveSeller: (id) => api.put(`/admin/sellers/${id}/approve`),
   rejectSeller: (id, reason) => api.put(`/admin/sellers/${id}/reject`, { reason }),
   getAllOrders: (params) => api.get('/admin/orders', { params }),
+  getAllPayments: (params) => api.get('/admin/payments', { params }),
   getAnalytics: () => api.get('/admin/analytics'),
   getContactMessages: () => api.get('/admin/contact-messages'),
   getBanners: () => api.get('/admin/banners'),

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { HiOutlinePencil, HiOutlineTrash, HiOutlinePlus, HiOutlineSearch } from 'react-icons/hi';
 import productService from '../../services/productService';
+import { adminService } from '../../services/dataService';
 import { formatPrice } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -17,7 +18,7 @@ const AdminProducts = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await productService.getProducts({ limit: 100 });
+      const res = await adminService.getProducts({ limit: 100 });
       setProducts(res.data.data.products || []);
     } catch { setProducts([]); }
     finally { setLoading(false); }

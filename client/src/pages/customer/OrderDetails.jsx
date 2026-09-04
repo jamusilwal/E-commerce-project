@@ -77,6 +77,26 @@ const OrderDetails = () => {
   const currentStepIndex = trackingSteps.findIndex((s) => s.status === order.status);
   const isCancelled = order.status === 'CANCELLED';
 
+  const handleOpenWhatsApp = () => {
+    const itemsText = (order.items || [])
+      .map((item) => `  • ${item.quantity}x ${item.product?.name || 'Item'} (Rs. ${item.total || item.price * item.quantity})`)
+      .join('\n');
+
+    const message = encodeURIComponent(
+      `🛍️ *HAMROLOK BAZAR — Order Details*\n\n` +
+      `📦 *Order Number:* #${order.orderNumber}\n` +
+      `👤 *Customer:* ${order.address?.fullName || 'Customer'}\n` +
+      `💳 *Payment:* ${order.payment?.method || 'N/A'} (${order.payment?.status || 'PENDING'})\n` +
+      `💰 *Grand Total:* Rs. ${Number(order.grandTotal || 0).toLocaleString('en-NP')}\n\n` +
+      `🛒 *Items:*\n${itemsText}\n\n` +
+      `📍 *Delivery Address:* ${order.address?.municipality || ''}, ${order.address?.district || 'Nepal'}\n` +
+      `🔗 *Track Order:* ${window.location.origin}/orders/${order.id}\n\n` +
+      `_Dhanyabad for shopping with HAMROLOK BAZAR!_`
+    );
+
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
   return (
     <div className="bg-surface py-10 min-h-screen">
       <div className="container-custom">
@@ -93,6 +113,14 @@ const OrderDetails = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleOpenWhatsApp}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-600/20"
+              title="Generate and open WhatsApp message with order details"
+            >
+              <span>📱</span>
+              <span>Send to WhatsApp</span>
+            </button>
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
               {order.status.replace(/_/g, ' ')}
             </span>

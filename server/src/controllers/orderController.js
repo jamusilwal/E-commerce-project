@@ -2,6 +2,8 @@ import prisma from '../config/db.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { generateTransactionSecurityData } from '../utils/transactionSecurity.js';
+import NotificationService from '../services/notificationService.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -10,6 +12,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 // POST /api/orders — create order (checkout)
 export const createOrder = asyncHandler(async (req, res) => {
+  if (req.user.role === 'ADMIN') {
+    throw ApiError.forbidden('Administrators cannot place customer orders. Admin accounts are designated for marketplace management and order tracking only.');
+  }
+
   const { addressId, paymentMethod, couponCode, notes } = req.body;
 
   // Get cart with items
@@ -341,12 +347,34 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       }
     }
 
-    // Payment auto-complete for COD on delivery
-    if (status === 'DELIVERED') {
-      await tx.payment.updateMany({
-        where: { orderId: order.id, method: 'COD', status: 'PENDING' },
-        data: { status: 'COMPLETED', paidAt: new Date() },
-      });
+    // Sign payment on confirmation or delivery with transaction security
+    if (['CONFIRMED', 'DELIVERED'].includes(status)) {
+      const payment = await tx.payment.findFirst({ where: { orderId: order.id } });
+      if (payment && (!payment.signature || (status === 'DELIVERED' && payment.method === 'COD'))) {
+        const paidAt = payment.paidAt || new Date();
+        const paymentStatus = (status === 'DELIVERED' || payment.status === 'COMPLETED') ? 'COMPLETED' : payment.status;
+        const securityData = generateTransactionSecurityData({
+          orderId: order.id,
+          amount: payment.amount,
+          method: payment.method,
+          status: paymentStatus,
+          transactionId: payment.transactionId || `TXN-${order.orderNumber}`,
+          paidAt,
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: paymentStatus,
+            paidAt,
+            transactionId: payment.transactionId || `TXN-${order.orderNumber}`,
+            integrityHash: securityData.integrityHash,
+            signature: securityData.signature,
+            signingKeyId: securityData.signingKeyId,
+            signedAt: securityData.signedAt,
+          },
+        });
+      }
     }
 
     // Notification
@@ -360,6 +388,22 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       },
     });
   });
+
+  // Non-blocking best-effort notification on delivery completion
+  if (status === 'DELIVERED') {
+    prisma.order.findUnique({
+      where: { id: order.id },
+      include: { user: true, items: { include: { product: true } }, payment: true },
+    }).then((fullOrder) => {
+      if (fullOrder) {
+        NotificationService.dispatchOrderConfirmationAlerts({
+          order: fullOrder,
+          payment: fullOrder.payment,
+          triggerSource: 'Order Delivered (COD / Finalized)',
+        });
+      }
+    }).catch((err) => console.error('Notification dispatch error:', err.message));
+  }
 
   return ApiResponse.ok(res, 'Order status updated');
 });

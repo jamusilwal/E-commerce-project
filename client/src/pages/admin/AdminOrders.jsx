@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineTruck, HiOutlineRefresh } from 'react-icons/hi';
-import { adminService } from '../../services/dataService';
+import { HiOutlineTruck, HiOutlineRefresh, HiOutlineShieldCheck } from 'react-icons/hi';
+import { adminService, paymentService } from '../../services/dataService';
 import { formatPrice } from '../../utils/helpers';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -208,6 +208,94 @@ const AdminOrders = () => {
                             <div><span className="text-text-muted">Courier:</span> <span className="font-bold text-text">{order.shipment.courierName || 'Not assigned'}</span></div>
                             <div><span className="text-text-muted">Shipment Status:</span> <span className="font-bold text-text">{order.shipment.status}</span></div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Transaction Security & Digital Signature Info */}
+                      {order.payment && (
+                        <div className="mb-4 p-4 bg-white rounded-xl border border-border-light">
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <h4 className="font-bold text-xs text-text-light uppercase tracking-wider flex items-center gap-1.5">
+                              <HiOutlineShieldCheck className="w-4 h-4 text-emerald-600" /> Transaction Security &amp; Cryptographic Proof
+                            </h4>
+                            {order.payment.signature ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                ✓ RSA-2048 Signed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                Unsigned (Pending Completion)
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono text-text-light bg-surface/40 p-2.5 rounded-lg">
+                            <div className="truncate">
+                              <span className="font-semibold font-sans text-text-muted">SHA-256 Hash: </span>
+                              <span className="text-[11px] text-text" title={order.payment.integrityHash || 'None'}>
+                                {order.payment.integrityHash ? `${order.payment.integrityHash.substring(0, 24)}...` : 'Pending'}
+                              </span>
+                            </div>
+                            <div className="truncate">
+                              <span className="font-semibold font-sans text-text-muted">Key ID: </span>
+                              <span className="text-[11px] text-text">{order.payment.signingKeyId || 'N/A'}</span>
+                            </div>
+                            {order.payment.signedAt && (
+                              <div className="text-[11px] font-sans text-text-muted md:col-span-2">
+                                Signed At: {new Date(order.payment.signedAt).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+
+                          {order.payment.id && (
+                            <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border-light">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await paymentService.verifySecurity(order.payment.id);
+                                    if (res.data.data.valid) {
+                                      toast.success('✓ Cryptographic Signature Valid: Integrity Verified!');
+                                    } else {
+                                      toast.error(`Verification Failed: ${res.data.data.error || 'Invalid signature'}`);
+                                    }
+                                  } catch (err) {
+                                    toast.error(err.response?.data?.message || 'Verification request failed');
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition-colors flex items-center gap-1"
+                              >
+                                <HiOutlineShieldCheck className="w-3.5 h-3.5" /> Verify Signature
+                              </button>
+
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    // Simulate tampered amount to prove cryptographic verification fails
+                                    const tamperedData = {
+                                      orderId: order.id,
+                                      amount: order.grandTotal + 500, // Altered amount
+                                      method: order.payment.method,
+                                      status: 'COMPLETED',
+                                      transactionId: order.payment.transactionId,
+                                      paidAt: order.payment.paidAt || new Date(),
+                                    };
+                                    const res = await paymentService.verifySecurity(order.payment.id, tamperedData);
+                                    if (!res.data.data.valid) {
+                                      toast.error('❌ Tamper Test Succeeded: Modified transaction payload was REJECTED!');
+                                    } else {
+                                      toast.success('Signature accepted');
+                                    }
+                                  } catch (err) {
+                                    toast.error(err.response?.data?.message || 'Tamper test error');
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-lg text-xs transition-colors border border-rose-200"
+                                title="Simulate altered amount to test integrity failure"
+                              >
+                                Test Tamper Detection
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
 

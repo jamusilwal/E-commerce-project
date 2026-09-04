@@ -6,12 +6,12 @@ import toast from 'react-hot-toast';
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchCart = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || user?.role === 'ADMIN') {
       setCart(null);
       return;
     }
@@ -24,7 +24,7 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.role]);
 
   useEffect(() => {
     fetchCart();
@@ -33,6 +33,10 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (productId, quantity = 1) => {
     if (!isAuthenticated) {
       toast.error('Please login to add items to cart');
+      return false;
+    }
+    if (user?.role === 'ADMIN') {
+      toast.error('Administrators cannot place orders. Admin accounts are for management and tracking only.');
       return false;
     }
     try {

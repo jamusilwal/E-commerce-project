@@ -25,3 +25,7 @@ Thumbs.db
 # Uploads
 uploads/
 temp/
+
+# Cryptographic Keys
+keys/*.pem
+keys/private*.pem

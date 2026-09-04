@@ -9,6 +9,10 @@ import asyncHandler from '../utils/asyncHandler.js';
 
 // GET /api/wishlist
 export const getWishlist = asyncHandler(async (req, res) => {
+  if (req.user.role === 'ADMIN') {
+    return ApiResponse.ok(res, 'Admin has no customer wishlist', { items: [] });
+  }
+
   let wishlist = await prisma.wishlist.findUnique({
     where: { userId: req.user.id },
     include: {
@@ -40,6 +44,10 @@ export const getWishlist = asyncHandler(async (req, res) => {
 
 // POST /api/wishlist/items
 export const addToWishlist = asyncHandler(async (req, res) => {
+  if (req.user.role === 'ADMIN') {
+    throw ApiError.forbidden('Administrators cannot use customer wishlist. Admin accounts are for management and tracking only.');
+  }
+
   const { productId } = req.body;
 
   const product = await prisma.product.findUnique({ where: { id: productId } });
