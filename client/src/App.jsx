@@ -24,6 +24,9 @@ import WishlistPage from './pages/customer/WishlistPage';
 
 // Seller Protected Pages
 import SellerDashboard from './pages/seller/SellerDashboard';
+import SellerRegister from './pages/seller/SellerRegister';
+import SellerProducts from './pages/seller/SellerProducts';
+import SellerAddProduct from './pages/seller/SellerAddProduct';
 
 // Admin Protected Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -62,9 +65,16 @@ function App() {
           <Route path="orders/:id" element={<OrderDetails />} />
         </Route>
 
-        {/* Seller Dashboard inside MainLayout */}
+        {/* Seller Registration (any authenticated user) */}
+        <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'SELLER']} />}>
+          <Route path="seller/register" element={<SellerRegister />} />
+        </Route>
+
+        {/* Seller Dashboard & Product Management */}
         <Route element={<ProtectedRoute allowedRoles={['SELLER']} />}>
           <Route path="seller/dashboard" element={<SellerDashboard />} />
+          <Route path="seller/products" element={<SellerProducts />} />
+          <Route path="seller/products/new" element={<SellerAddProduct />} />
         </Route>
 
         {/* Admin Dashboard inside MainLayout */}

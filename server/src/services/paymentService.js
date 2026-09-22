@@ -201,10 +201,10 @@ class PaymentService {
       }),
     ]);
 
-    // Non-blocking best-effort admin order confirmation alert
+    // Non-blocking best-effort order confirmation alert (customer email + admin)
     prisma.order.findUnique({
       where: { id: order.id },
-      include: { user: true, items: { include: { product: true } }, payment: true },
+      include: { user: true, address: true, items: { include: { product: true } }, payment: true },
     }).then((fullOrder) => {
       if (fullOrder) {
         NotificationService.dispatchOrderConfirmationAlerts({
@@ -368,10 +368,10 @@ class PaymentService {
       }),
     ]);
 
-    // Non-blocking best-effort admin order confirmation alert
+    // Non-blocking best-effort order confirmation alert (customer email + admin)
     prisma.order.findUnique({
       where: { id: order.id },
-      include: { user: true, items: { include: { product: true } }, payment: true },
+      include: { user: true, address: true, items: { include: { product: true } }, payment: true },
     }).then((fullOrder) => {
       if (fullOrder) {
         NotificationService.dispatchOrderConfirmationAlerts({

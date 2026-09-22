@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import env from '../config/env.js';
 import prisma from '../config/db.js';
 import ApiError from '../utils/ApiError.js';
+import { validateEmailDomainMx } from '../utils/emailValidator.js';
+import NotificationService from './notificationService.js';
 
 /**
  * Auth Service — handles all authentication business logic
@@ -45,8 +47,16 @@ class AuthService {
    * Register a new user
    */
   static async register({ firstName, lastName, email, phone, password, role = 'CUSTOMER' }) {
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
+    // Verify valid email syntax and domain active MX records
+    const emailCheck = await validateEmailDomainMx(normalizedEmail);
+    if (!emailCheck.isValid) {
+      throw ApiError.badRequest(emailCheck.error || 'Please provide a valid, active email address');
+    }
+
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existingUser) {
       throw ApiError.conflict('An account with this email already exists');
     }
@@ -96,6 +106,11 @@ class AuthService {
       where: { id: user.id },
       data: { refreshToken },
     });
+
+    // Send welcoming email to customer's valid email address (non-blocking)
+    NotificationService.sendCustomerWelcomeEmail({ user }).catch((err) =>
+      console.error('Welcome email dispatch error:', err.message)
+    );
 
     return { user, accessToken, refreshToken };
   }

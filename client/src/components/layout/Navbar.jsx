@@ -65,7 +65,7 @@ const Navbar = () => {
                 Admin Panel
               </Link>
             ) : (
-              <Link to="/auth/register" className="hover:text-accent transition-colors">
+              <Link to="/seller/register" className="hover:text-accent transition-colors">
                 Become an Artisan Seller
               </Link>
             )}
@@ -206,14 +206,24 @@ const Navbar = () => {
                           </Link>
 
                           {isSeller && (
-                            <Link
-                              to="/seller/dashboard"
-                              onClick={() => setIsUserMenuOpen(false)}
-                              className="flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 rounded-xl font-bold"
-                            >
-                              <HiOutlineCog className="w-4 h-4" />
-                              Artisan Dashboard
-                            </Link>
+                            <>
+                              <Link
+                                to="/seller/dashboard"
+                                onClick={() => setIsUserMenuOpen(false)}
+                                className="flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 rounded-xl font-bold"
+                              >
+                                <HiOutlineCog className="w-4 h-4" />
+                                Artisan Dashboard
+                              </Link>
+                              <Link
+                                to="/seller/products"
+                                onClick={() => setIsUserMenuOpen(false)}
+                                className="flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 rounded-xl font-bold"
+                              >
+                                <HiOutlineCog className="w-4 h-4" />
+                                My Products
+                              </Link>
+                            </>
                           )}
 
                           {isAdmin && (

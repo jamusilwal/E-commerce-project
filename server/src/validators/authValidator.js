@@ -1,4 +1,5 @@
 import { body } from 'express-validator';
+import { validateEmailDomainMx } from '../utils/emailValidator.js';
 
 /**
  * Validation rules for authentication endpoints
@@ -19,7 +20,13 @@ export const registerRules = [
     .trim()
     .notEmpty().withMessage('Email is required')
     .isEmail().withMessage('Invalid email format')
-    .normalizeEmail(),
+    .custom(async (value) => {
+      const check = await validateEmailDomainMx(value);
+      if (!check.isValid) {
+        throw new Error(check.error || 'Please provide a valid, active email address');
+      }
+      return true;
+    }),
 
   body('phone')
     .optional({ checkFalsy: true })

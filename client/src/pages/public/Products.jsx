@@ -67,8 +67,14 @@ const Products = () => {
     } else {
       newParams.delete(key);
     }
-    newParams.set('page', '1');
+    // Only reset page to 1 when changing filters/sort, NOT when clicking pagination pages
+    if (key !== 'page') {
+      newParams.set('page', '1');
+    }
     setSearchParams(newParams);
+    if (key === 'page') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -300,19 +306,36 @@ const Products = () => {
             {/* Pagination */}
             {pages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-10">
+                <button
+                  type="button"
+                  onClick={() => updateParam('page', Math.max(1, currentPage - 1).toString())}
+                  disabled={currentPage <= 1}
+                  className="px-3 h-9 rounded-xl font-semibold text-xs transition-all bg-white text-text border border-border hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
                 {[...Array(pages)].map((_, i) => (
                   <button
                     key={i + 1}
+                    type="button"
                     onClick={() => updateParam('page', (i + 1).toString())}
                     className={`w-9 h-9 rounded-xl font-semibold text-xs transition-all ${
                       currentPage === i + 1
-                        ? 'bg-primary text-white shadow-sm'
+                        ? 'bg-primary text-white shadow-sm font-bold'
                         : 'bg-white text-text border border-border hover:bg-surface'
                     }`}
                   >
                     {i + 1}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => updateParam('page', Math.min(pages, currentPage + 1).toString())}
+                  disabled={currentPage >= pages}
+                  className="px-3 h-9 rounded-xl font-semibold text-xs transition-all bg-white text-text border border-border hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
               </div>
             )}
           </main>

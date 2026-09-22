@@ -167,20 +167,57 @@ const Register = () => {
               <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input
                 type="email"
-                placeholder="Enter your email adddress"
+                placeholder="Enter your valid email address"
                 className={`w-full pl-10 pr-3 py-2.5 rounded-xl border ${errors.email ? 'border-error' : 'border-border'
                   } bg-surface text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all`}
                 {...register('email', {
-                  required: 'Email is required',
+                  required: 'Email address is required',
                   pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: 'Invalid email address',
+                    value: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/,
+                    message: 'Please enter a valid email format (e.g. name@example.com)',
+                  },
+                  validate: {
+                    notDisposable: (val) => {
+                      const domain = (val || '').split('@')[1]?.toLowerCase();
+                      const blocked = [
+                        'mailinator.com',
+                        'tempmail.com',
+                        '10minutemail.com',
+                        'guerrillamail.com',
+                        'yopmail.com',
+                        'sharklasers.com',
+                        'throwawaymail.com',
+                        'trashmail.com',
+                        'dispostable.com',
+                        'temp-mail.org',
+                        'temp-mail.io',
+                        'generator.email',
+                      ];
+                      if (domain && blocked.includes(domain)) {
+                        return 'Disposable emails are not allowed. Please use a permanent email address.';
+                      }
+                      return true;
+                    },
+                    validTld: (val) => {
+                      const parts = (val || '').split('@');
+                      if (parts.length === 2) {
+                        const tld = parts[1].split('.').pop();
+                        if (!tld || tld.length < 2) {
+                          return 'Email must have a valid extension (e.g. .com, .np, .edu)';
+                        }
+                      }
+                      return true;
+                    },
                   },
                 })}
               />
             </div>
-            {errors.email && (
+            {errors.email ? (
               <p className="text-xs text-error mt-1">{errors.email.message}</p>
+            ) : (
+              <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1">
+                <span>✉️</span> Order confirmations and delivery updates will be sent to this email.
+              </p>
             )}
           </div>
 

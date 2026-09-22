@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { HiOutlineShoppingBag, HiOutlineChevronRight } from 'react-icons/hi';
+import { HiOutlineShoppingBag, HiOutlineChevronRight, HiOutlineDownload } from 'react-icons/hi';
 import { orderService } from '../../services/dataService';
 import { formatPrice, formatDate, getStatusColor } from '../../utils/helpers';
+import toast from 'react-hot-toast';
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -23,6 +25,27 @@ const OrderHistory = () => {
 
     fetchOrders();
   }, []);
+
+  const handleDownloadBill = async (order) => {
+    try {
+      setDownloadingId(order.id);
+      const res = await orderService.downloadBill(order.id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `HLB-${order.orderNumber}-Invoice.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Bill downloaded');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download bill');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -57,37 +80,55 @@ const OrderHistory = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl p-6 border border-border-light shadow-sm hover:shadow-card-hover transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-text text-base">{order.orderNumber}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(order.status)}`}>
-                      {order.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-muted mt-1">
-                    Placed on {formatDate(order.createdAt)} • {order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'}
-                  </p>
-                  <p className="text-sm font-bold text-primary mt-2">
-                    {formatPrice(order.grandTotal)}
-                  </p>
-                </div>
+            {orders.map((order) => {
+              const billAvailable = !['PENDING', 'CANCELLED'].includes(order.status);
+              const isDownloading = downloadingId === order.id;
 
-                <Link
-                  to={`/orders/${order.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline self-start sm:self-center"
+              return (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl p-6 border border-border-light shadow-sm hover:shadow-card-hover transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
-                  View Details &amp; Tracking
-                  <HiOutlineChevronRight className="w-4 h-4" />
-                </Link>
-              </motion.div>
-            ))}
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-text text-base">{order.orderNumber}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(order.status)}`}>
+                        {order.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1">
+                      Placed on {formatDate(order.createdAt)} • {order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'}
+                    </p>
+                    <p className="text-sm font-bold text-primary mt-2">
+                      {formatPrice(order.grandTotal)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-start sm:self-center">
+                    {billAvailable && (
+                      <button
+                        onClick={() => handleDownloadBill(order)}
+                        disabled={isDownloading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-[11px] font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Download PDF Invoice"
+                      >
+                        <HiOutlineDownload className="w-3.5 h-3.5" />
+                        <span>{isDownloading ? '...' : 'Bill'}</span>
+                      </button>
+                    )}
+                    <Link
+                      to={`/orders/${order.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    >
+                      View Details &amp; Tracking
+                      <HiOutlineChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -97,6 +97,32 @@ const OrderDetails = () => {
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
+  const [downloadingBill, setDownloadingBill] = useState(false);
+
+  const handleDownloadBill = async () => {
+    try {
+      setDownloadingBill(true);
+      const res = await orderService.downloadBill(order.id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `HLB-${order.orderNumber}-Invoice.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Bill downloaded successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download bill');
+    } finally {
+      setDownloadingBill(false);
+    }
+  };
+
+  // Bill is available for confirmed and beyond (not PENDING or CANCELLED)
+  const billAvailable = !['PENDING', 'CANCELLED'].includes(order.status);
+
   return (
     <div className="bg-surface py-10 min-h-screen">
       <div className="container-custom">
@@ -112,7 +138,18 @@ const OrderDetails = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {billAvailable && (
+              <button
+                onClick={handleDownloadBill}
+                disabled={downloadingBill}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download PDF Invoice"
+              >
+                <HiOutlineDownload className="w-4 h-4" />
+                <span>{downloadingBill ? 'Generating...' : 'Download Bill'}</span>
+              </button>
+            )}
             <button
               onClick={handleOpenWhatsApp}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-600/20"

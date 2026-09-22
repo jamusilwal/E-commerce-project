@@ -25,6 +25,7 @@ export const orderService = {
   getMyOrders: (params) => api.get('/orders', { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
   cancelOrder: (id, reason) => api.put(`/orders/${id}/cancel`, { reason }),
+  downloadBill: (id) => api.get(`/orders/${id}/bill`, { responseType: 'blob' }),
 };
 
 export const paymentService = {
@@ -46,6 +47,16 @@ export const addressService = {
   createAddress: (data) => api.post('/addresses', data),
   updateAddress: (id, data) => api.put(`/addresses/${id}`, data),
   deleteAddress: (id) => api.delete(`/addresses/${id}`),
+};
+
+export const productService = {
+  getSellerProducts: (params) => api.get('/products/seller/my-products', { params }),
+  createProduct: (data) => api.post('/products', data),
+  updateProduct: (id, data) => api.put(`/products/${id}`, data),
+  deleteProduct: (id) => api.delete(`/products/${id}`),
+  uploadImages: (id, formData) => api.post(`/products/${id}/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 export const sellerService = {

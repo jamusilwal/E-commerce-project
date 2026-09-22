@@ -5,6 +5,7 @@ import {
   getOrderById,
   cancelOrder,
   updateOrderStatus,
+  downloadBill,
 } from '../controllers/orderController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -16,6 +17,7 @@ router.use(authenticate);
 router.post('/', createOrder);
 router.get('/', getMyOrders);
 router.get('/:id', getOrderById);
+router.get('/:id/bill', downloadBill);
 router.put('/:id/cancel', cancelOrder);
 
 // Admin / Seller — update order status

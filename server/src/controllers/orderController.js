@@ -4,6 +4,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { generateTransactionSecurityData } from '../utils/transactionSecurity.js';
 import NotificationService from '../services/notificationService.js';
+import { generateBillPDF } from '../utils/billGenerator.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -127,6 +128,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         payment: true,
         shipment: true,
         address: true,
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
       },
     });
 
@@ -169,6 +171,15 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     return newOrder;
   });
+
+  // For COD orders, dispatch order confirmation email to customer & admin immediately
+  if (paymentMethod === 'COD') {
+    NotificationService.dispatchOrderConfirmationAlerts({
+      order,
+      payment: order.payment,
+      triggerSource: 'Cash On Delivery Placement',
+    }).catch((err) => console.error('Notification dispatch error:', err.message));
+  }
 
   return ApiResponse.created(res, 'Order placed successfully', order);
 });
@@ -389,21 +400,92 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     });
   });
 
-  // Non-blocking best-effort notification on delivery completion
+  // Non-blocking best-effort notifications on order status updates
   if (status === 'DELIVERED') {
     prisma.order.findUnique({
       where: { id: order.id },
-      include: { user: true, items: { include: { product: true } }, payment: true },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        address: true,
+        shipment: true,
+        items: { include: { product: true } },
+        payment: true,
+      },
+    }).then((fullOrder) => {
+      if (fullOrder) {
+        NotificationService.dispatchOrderDeliveredAlerts({
+          order: fullOrder,
+          shipment: fullOrder.shipment,
+        });
+      }
+    }).catch((err) => console.error('Delivery notification dispatch error:', err.message));
+  } else if (status === 'CONFIRMED') {
+    prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        address: true,
+        shipment: true,
+        items: { include: { product: true } },
+        payment: true,
+      },
     }).then((fullOrder) => {
       if (fullOrder) {
         NotificationService.dispatchOrderConfirmationAlerts({
           order: fullOrder,
           payment: fullOrder.payment,
-          triggerSource: 'Order Delivered (COD / Finalized)',
+          triggerSource: 'Admin/Seller Confirmation',
         });
       }
-    }).catch((err) => console.error('Notification dispatch error:', err.message));
+    }).catch((err) => console.error('Confirmation notification dispatch error:', err.message));
   }
 
   return ApiResponse.ok(res, 'Order status updated');
+});
+
+// GET /api/orders/:id/bill — download PDF invoice/bill
+export const downloadBill = asyncHandler(async (req, res) => {
+  const order = await prisma.order.findFirst({
+    where: {
+      id: req.params.id,
+      ...(req.user.role === 'ADMIN' ? {} : { userId: req.user.id }),
+    },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              name: true,
+              slug: true,
+              images: { where: { isPrimary: true }, take: 1 },
+            },
+          },
+        },
+      },
+      payment: true,
+      shipment: true,
+      address: true,
+      user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+    },
+  });
+
+  if (!order) {
+    throw ApiError.notFound('Order not found');
+  }
+
+  // Only allow bill download for orders that are confirmed or beyond
+  const disallowedStatuses = ['PENDING', 'CANCELLED'];
+  if (disallowedStatuses.includes(order.status)) {
+    throw ApiError.badRequest(
+      `Bill is not available for orders with status "${order.status}". Bills are generated once an order is confirmed.`
+    );
+  }
+
+  const pdfBuffer = await generateBillPDF(order);
+
+  const filename = `HLB-${order.orderNumber}-Invoice.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+  res.send(pdfBuffer);
 });
