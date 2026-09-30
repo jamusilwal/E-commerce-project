@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineSearch, HiOutlineUserGroup, HiOutlineShieldCheck, HiOutlineShoppingBag, HiOutlineLockClosed } from 'react-icons/hi';
+import { HiOutlineSearch } from 'react-icons/hi';
 import { adminService } from '../../services/dataService';
 import toast from 'react-hot-toast';
 
@@ -33,6 +33,7 @@ const AdminUsers = () => {
   }, [roleFilter, search]);
 
   const handleToggleActive = async (id, currentStatus) => {
+    if (currentStatus && !window.confirm('Deactivate this user? They will no longer be able to sign in.')) return;
     try {
       await adminService.toggleUserActive(id);
       toast.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`);
@@ -80,7 +81,7 @@ const AdminUsers = () => {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {['', 'CUSTOMER', 'SELLER', 'ADMIN'].map((r) => (
               <button
                 key={r}

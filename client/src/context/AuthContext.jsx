@@ -6,8 +6,12 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('user');
+      return saved && localStorage.getItem('accessToken') ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
   const [loading, setLoading] = useState(true);
 
@@ -20,11 +24,15 @@ export const AuthProvider = ({ children }) => {
           const res = await authService.getMe();
           setUser(res.data.data);
           localStorage.setItem('user', JSON.stringify(res.data.data));
-        } catch {
-          // Token invalid/expired
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
-          setUser(null);
+        } catch (err) {
+          // Only sign out when the server rejects the session. Network errors,
+          // rate limits (429) or server errors keep the cached user signed in.
+          const status = err.response?.status;
+          if (status === 401 || status === 403) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            setUser(null);
+          }
         }
       }
       setLoading(false);
@@ -50,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       } else if (err.response?.data?.message) {
         msg = err.response.data.message;
       } else if (err.message === 'Network Error' || !err.response) {
-        msg = 'Cannot connect to backend server. Make sure server (npm run dev) is running on port 5000.';
+        msg = 'Cannot connect to the server. Make sure the backend (npm run dev in /server) is running.';
       } else {
         msg = err.message;
       }
@@ -76,7 +84,7 @@ export const AuthProvider = ({ children }) => {
       } else if (err.response?.data?.message) {
         msg = err.response.data.message;
       } else if (err.message === 'Network Error' || !err.response) {
-        msg = 'Cannot connect to backend server. Make sure server (npm run dev) is running on port 5000.';
+        msg = 'Cannot connect to the server. Make sure the backend (npm run dev in /server) is running.';
       } else {
         msg = err.message;
       }
@@ -95,6 +103,18 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('user');
       setUser(null);
       toast.success('Logged out');
+    }
+  };
+
+  // Re-read the signed-in user (e.g. after the server changes their role)
+  const refreshUser = async () => {
+    try {
+      const res = await authService.getMe();
+      setUser(res.data.data);
+      localStorage.setItem('user', JSON.stringify(res.data.data));
+      return res.data.data;
+    } catch {
+      return null;
     }
   };
 
@@ -122,6 +142,7 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         updateProfile,
+        refreshUser,
         isAuthenticated: !!user,
         isCustomer: user?.role === 'CUSTOMER',
         isSeller: user?.role === 'SELLER',

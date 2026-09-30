@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineCollection } from 'react-icons/hi';
+import { HiOutlinePlus, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
 import { categoryService, adminService } from '../../services/dataService';
+import { invalidateCategories } from '../../hooks/useCategories';
 import toast from 'react-hot-toast';
 
 const AdminCategories = () => {
@@ -46,17 +47,21 @@ const AdminCategories = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.name) return toast.error('Category name is required');
+    if (!formData.name.trim()) return toast.error('Category name is required');
+
+    // Never send an empty slug — the server generates one from the name
+    const payload = { ...formData, name: formData.name.trim(), slug: formData.slug.trim() || undefined };
 
     try {
       if (editingCategory) {
-        await adminService.updateCategory(editingCategory.id, formData);
+        await adminService.updateCategory(editingCategory.id, payload);
         toast.success('Category updated successfully');
       } else {
-        await adminService.createCategory(formData);
+        await adminService.createCategory(payload);
         toast.success('Category created successfully');
       }
       setShowModal(false);
+      invalidateCategories();
       fetchCategories();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save category');
@@ -68,6 +73,7 @@ const AdminCategories = () => {
     try {
       await adminService.deleteCategory(id);
       toast.success('Category deleted');
+      invalidateCategories();
       fetchCategories();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete category');

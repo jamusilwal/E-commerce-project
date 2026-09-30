@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   HiOutlineShoppingBag,
   HiOutlineCurrencyDollar,
@@ -41,18 +40,49 @@ const SellerDashboard = () => {
   const { profile, stats, recentOrders } = data || {};
   const isApproved = profile?.status === 'APPROVED';
 
+  // Seller account without a shop profile yet (or the dashboard failed to load)
+  if (!profile) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center bg-background p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-border-light shadow-card p-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-sage text-primary flex items-center justify-center mx-auto">
+            <HiOutlineShoppingBag className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-bold text-text mt-4">Set up your artisan shop</h1>
+          <p className="text-sm text-text-light mt-2">
+            Submit your shop details for approval before you can list products.
+          </p>
+          <Link
+            to="/seller/register"
+            className="inline-block mt-6 px-6 py-3 bg-primary hover:bg-primary-light text-white text-sm font-semibold rounded-xl"
+          >
+            Apply as an Artisan
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-surface py-8 min-h-screen">
       <div className="container-custom">
         {/* Banner if pending approval */}
         {!isApproved && (
-          <div className="mb-6 p-4 rounded-2xl bg-warning-light text-warning border border-warning/20 flex items-center justify-between">
-            <div>
-              <p className="font-bold text-sm">Account Approval Pending</p>
-              <p className="text-xs opacity-90 mt-0.5">
-                Your artisan account is currently under review by our team. Once approved, your products will be visible on the public marketplace.
-              </p>
-            </div>
+          <div
+            className={`mb-6 p-4 rounded-2xl border ${
+              profile.status === 'REJECTED'
+                ? 'bg-error-light text-error border-error/20'
+                : 'bg-warning-light text-warning border-warning/20'
+            }`}
+          >
+            <p className="font-bold text-sm">
+              {profile.status === 'REJECTED' ? 'Application Not Approved' : 'Account Approval Pending'}
+            </p>
+            <p className="text-xs opacity-90 mt-0.5">
+              {profile.status === 'REJECTED'
+                ? profile.rejectionReason || 'Please contact support for details.'
+                : 'Your artisan account is under review. Once approved, your products will be visible on the marketplace.'}
+            </p>
           </div>
         )}
 
@@ -67,13 +97,27 @@ const SellerDashboard = () => {
             </h1>
           </div>
 
-          <Link
-            to="/seller/products/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl text-xs shadow-md transition-all self-start sm:self-auto"
-          >
-            <HiOutlinePlus className="w-4 h-4" />
-            Add New Product
-          </Link>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+            <Link
+              to="/seller/products"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-border hover:bg-surface text-text font-semibold rounded-xl text-xs transition-all"
+            >
+              My Products
+            </Link>
+            <Link
+              to="/seller/orders"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-border hover:bg-surface text-text font-semibold rounded-xl text-xs transition-all"
+            >
+              Orders
+            </Link>
+            <Link
+              to="/seller/products/new"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl text-xs shadow-md transition-all"
+            >
+              <HiOutlinePlus className="w-4 h-4" />
+              Add New Product
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -139,7 +183,7 @@ const SellerDashboard = () => {
                 View All
               </Link>
             </div>
-            {recentOrders?.length === 0 ? (
+            {!recentOrders?.length ? (
               <p className="text-xs text-text-muted">No recent orders.</p>
             ) : (
               <div className="space-y-3">

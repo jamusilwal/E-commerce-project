@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
   HiOutlineShoppingBag,
@@ -14,23 +13,50 @@ import {
   HiOutlineSparkles,
 } from 'react-icons/hi';
 import { productService, categoryService } from '../../services/dataService';
+import { handleImageError } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
+const toFormValues = (product) => ({
+  name: product.name || '',
+  categoryId: product.categoryId || '',
+  shortDescription: product.shortDescription || '',
+  description: product.description || '',
+  materials: product.materials || '',
+  price: product.price ?? '',
+  comparePrice: product.comparePrice ?? '',
+  quantity: product.inventory?.quantity ?? 0,
+  weight: product.weight ?? '',
+  estimatedDelivery: product.estimatedDelivery || '',
+  dimensions: product.dimensions || '',
+  tags: (product.tags || []).join(', '),
+  isActive: product.isActive !== false,
+});
+
+/** Add a new product, or edit an existing one at /seller/products/:id/edit */
 const SellerAddProduct = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [loadingProduct, setLoadingProduct] = useState(isEdit);
+  const previewsRef = useRef([]);
 
   const {
     register,
     handleSubmit,
+    reset,
+    getValues,
     formState: { errors },
   } = useForm({
     defaultValues: {
       quantity: 10,
       estimatedDelivery: '3-5 business days',
+      isActive: true,
     },
   });
 
@@ -46,75 +72,125 @@ const SellerAddProduct = () => {
     loadCategories();
   }, []);
 
+  // Edit mode: load the product from the seller's own listings
+  useEffect(() => {
+    if (!isEdit) return;
+    const loadProduct = async () => {
+      try {
+        const res = await productService.getSellerProducts({ page: 1, limit: 500 });
+        const product = (res.data.data.products || []).find((p) => p.id === id);
+        if (!product) {
+          toast.error('Product not found');
+          navigate('/seller/products', { replace: true });
+          return;
+        }
+        reset(toFormValues(product));
+        setExistingImages(product.images || []);
+      } catch {
+        toast.error('Failed to load product');
+        navigate('/seller/products', { replace: true });
+      } finally {
+        setLoadingProduct(false);
+      }
+    };
+    loadProduct();
+  }, [id, isEdit, navigate, reset]);
+
+  // Free preview object URLs when leaving the page
+  useEffect(() => () => previewsRef.current.forEach((url) => URL.revokeObjectURL(url)), []);
+
+  const maxNewImages = 5 - existingImages.length;
+
   const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length + selectedImages.length > 5) {
-      toast.error('Maximum 5 images allowed');
+    const files = Array.from(e.target.files || []);
+    e.target.value = ''; // allow picking the same file again later
+    if (files.length === 0) return;
+
+    if (files.length + selectedImages.length > maxNewImages) {
+      toast.error(`You can add ${Math.max(0, maxNewImages - selectedImages.length)} more image(s) (5 max)`);
+      return;
+    }
+    const tooLarge = files.find((file) => file.size > 5 * 1024 * 1024);
+    if (tooLarge) {
+      toast.error(`${tooLarge.name} is larger than 5MB`);
       return;
     }
 
-    setSelectedImages(prev => [...prev, ...files]);
-
-    // Generate previews
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    // Object URLs are created synchronously, so previews stay in the same order as files
+    const urls = files.map((file) => URL.createObjectURL(file));
+    previewsRef.current.push(...urls);
+    setSelectedImages((prev) => [...prev, ...files]);
+    setImagePreviews((prev) => [...prev, ...urls]);
   };
 
   const removeImage = (index) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    URL.revokeObjectURL(imagePreviews[index]);
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Create the product first
       const productPayload = {
-        name: data.name,
+        name: data.name.trim(),
         description: data.description,
         shortDescription: data.shortDescription || '',
         materials: data.materials || '',
         price: parseFloat(data.price),
-        comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : undefined,
+        comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : null,
         categoryId: data.categoryId,
-        quantity: parseInt(data.quantity) || 10,
-        isFeatured: false,
+        quantity: parseInt(data.quantity, 10) || 0,
         estimatedDelivery: data.estimatedDelivery || '3-5 business days',
-        weight: data.weight ? parseFloat(data.weight) : undefined,
+        weight: data.weight ? parseFloat(data.weight) : null,
         dimensions: data.dimensions || '',
-        tags: data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        tags: data.tags ? data.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       };
 
-      const res = await productService.createProduct(productPayload);
-      const product = res.data.data;
+      let productId = id;
+      if (isEdit) {
+        await productService.updateProduct(id, { ...productPayload, isActive: !!data.isActive });
+      } else {
+        const res = await productService.createProduct({
+          ...productPayload,
+          comparePrice: productPayload.comparePrice ?? undefined,
+          weight: productPayload.weight ?? undefined,
+          isFeatured: false,
+        });
+        productId = res.data.data.id;
+      }
 
       // Upload images if any
       if (selectedImages.length > 0) {
         const formData = new FormData();
-        selectedImages.forEach(file => {
-          formData.append('images', file);
-        });
-
+        selectedImages.forEach((file) => formData.append('images', file));
         try {
-          await productService.uploadImages(product.id, formData);
-        } catch {
-          toast.error('Product created but image upload failed. You can add images later.');
+          await productService.uploadImages(productId, formData);
+        } catch (err) {
+          toast.error(
+            `Product saved, but images could not be uploaded${
+              err.response?.data?.message ? `: ${err.response.data.message}` : '.'
+            } You can try again by editing the product.`
+          );
         }
       }
 
-      toast.success('Product created successfully! 🎉');
+      toast.success(isEdit ? 'Product updated' : 'Product created successfully! 🎉');
       navigate('/seller/products');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create product');
+      toast.error(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} product`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loadingProduct) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-surface py-8 min-h-screen">
@@ -133,17 +209,19 @@ const SellerAddProduct = () => {
           <div className="relative z-10">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-[11px] font-bold tracking-wider uppercase mb-3">
               <HiOutlineSparkles className="w-3.5 h-3.5" />
-              New Listing
+              {isEdit ? 'Edit Listing' : 'New Listing'}
             </span>
-            <h1 className="text-3xl font-bold font-[Playfair_Display]">
-              Add New Product
+            <h1 className="text-3xl font-bold text-white">
+              {isEdit ? 'Edit Product' : 'Add New Product'}
             </h1>
             <p className="text-xs text-white/80 mt-2 max-w-xl leading-relaxed">
-              List your handmade creation on HAMROLOK BAZAR. Fill in the details below to showcase your craft to buyers across Nepal and beyond.
+              {isEdit
+                ? 'Update the details, price or stock of this product. Changes appear on the marketplace straight away.'
+                : 'List your handmade creation on HAMROLOK BAZAR. Fill in the details below to showcase your craft to buyers across Nepal and beyond.'}
             </p>
           </div>
           <div className="absolute right-0 bottom-0 opacity-10 text-9xl font-bold font-[Playfair_Display] select-none translate-x-10 translate-y-6">
-            NEW
+            {isEdit ? 'EDIT' : 'NEW'}
           </div>
         </div>
 
@@ -273,10 +351,16 @@ const SellerAddProduct = () => {
                     type="number"
                     step="0.01"
                     placeholder="Original price before discount"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-surface text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                    {...register('comparePrice')}
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border ${errors.comparePrice ? 'border-error' : 'border-border'} bg-surface text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all`}
+                    {...register('comparePrice', {
+                      validate: (value) =>
+                        !value ||
+                        parseFloat(value) > parseFloat(getValues('price') || 0) ||
+                        'Compare-at price must be higher than the price',
+                    })}
                   />
                 </div>
+                {errors.comparePrice && <p className="text-xs text-error mt-1">{errors.comparePrice.message}</p>}
               </div>
 
               {/* Stock Quantity */}
@@ -366,12 +450,42 @@ const SellerAddProduct = () => {
             </div>
           </div>
 
+          {/* Visibility (edit mode) */}
+          {isEdit && (
+            <label className="flex items-center justify-between gap-4 bg-white rounded-3xl p-6 sm:p-8 border border-border-light shadow-sm cursor-pointer">
+              <span>
+                <span className="block text-sm font-semibold text-text">Visible on the marketplace</span>
+                <span className="block text-xs text-text-muted mt-0.5">Turn off to hide this product from buyers without deleting it.</span>
+              </span>
+              <input type="checkbox" className="w-5 h-5 accent-primary" {...register('isActive')} />
+            </label>
+          )}
+
           {/* Product Images */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border-light shadow-sm">
             <h2 className="text-lg font-bold text-text font-[Playfair_Display] mb-6 flex items-center gap-2">
               <HiOutlinePhotograph className="w-5 h-5 text-primary" />
               Product Images
             </h2>
+
+            {/* Existing images (edit mode) */}
+            {existingImages.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-text-light mb-2">Current images</p>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  {existingImages.map((img, idx) => (
+                    <div key={img.id || idx} className="relative rounded-xl overflow-hidden border border-border-light aspect-square">
+                      <img src={img.url} alt="" onError={handleImageError} className="w-full h-full object-cover" />
+                      {(img.isPrimary || idx === 0) && (
+                        <span className="absolute bottom-1.5 left-1.5 bg-primary text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                          PRIMARY
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Image Previews */}
             {imagePreviews.length > 0 && (
@@ -382,11 +496,12 @@ const SellerAddProduct = () => {
                     <button
                       type="button"
                       onClick={() => removeImage(idx)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-error text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-error text-white rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition"
+                      aria-label={`Remove image ${idx + 1}`}
                     >
                       <HiOutlineX className="w-3.5 h-3.5" />
                     </button>
-                    {idx === 0 && (
+                    {idx === 0 && existingImages.length === 0 && (
                       <span className="absolute bottom-1.5 left-1.5 bg-primary text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
                         PRIMARY
                       </span>
@@ -397,18 +512,18 @@ const SellerAddProduct = () => {
             )}
 
             {/* Upload Button */}
-            {selectedImages.length < 5 && (
+            {selectedImages.length < maxNewImages && (
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border hover:border-primary rounded-2xl bg-surface cursor-pointer transition-colors group">
                 <HiOutlineUpload className="w-8 h-8 text-text-muted group-hover:text-primary transition" />
                 <span className="text-xs text-text-muted mt-2 group-hover:text-primary transition">
-                  Click to upload images ({selectedImages.length}/5)
+                  Click to upload images ({existingImages.length + selectedImages.length}/5)
                 </span>
                 <span className="text-[10px] text-text-muted/60 mt-0.5">
                   JPG, PNG, WebP — max 5MB each
                 </span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
                   multiple
                   onChange={handleImageSelect}
                   className="hidden"
@@ -417,7 +532,9 @@ const SellerAddProduct = () => {
             )}
 
             <p className="text-[11px] text-text-muted mt-3">
-              First image will be the main product image. You can also add images after creating the product.
+              {isEdit
+                ? 'New images are added after the current ones.'
+                : 'First image will be the main product image. You can also add images after creating the product.'}
             </p>
           </div>
 
@@ -431,19 +548,19 @@ const SellerAddProduct = () => {
               {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Creating Product...</span>
+                  <span>{isEdit ? 'Saving Changes…' : 'Creating Product…'}</span>
                 </>
               ) : (
                 <>
                   <HiOutlineClipboardList className="w-5 h-5" />
-                  <span>Create Product Listing</span>
+                  <span>{isEdit ? 'Save Changes' : 'Create Product Listing'}</span>
                 </>
               )}
             </button>
             <button
               type="button"
               onClick={() => navigate('/seller/products')}
-              className="px-8 py-4 bg-surface border border-border text-text font-semibold rounded-xl text-sm hover:bg-surface-alt transition"
+              className="px-8 py-4 bg-surface border border-border text-text font-semibold rounded-xl text-sm hover:bg-border-light transition"
             >
               Cancel
             </button>

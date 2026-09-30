@@ -22,7 +22,7 @@ router.get('/:id/related', getRelatedProducts);
 // Seller — own products
 router.get('/seller/my-products', authenticate, authorize('SELLER'), getSellerProducts);
 router.post('/', authenticate, authorize('SELLER'), createProduct);
-router.put('/:id', authenticate, authorize('SELLER'), updateProduct);
+router.put('/:id', authenticate, authorize('SELLER', 'ADMIN'), updateProduct);
 router.post('/:id/images', authenticate, authorize('SELLER'), uploadMultiple, uploadProductImages);
 
 // Seller or Admin delete

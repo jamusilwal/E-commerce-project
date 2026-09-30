@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlineCreditCard, HiOutlineShieldCheck, HiOutlineRefresh, HiOutlineSearch } from 'react-icons/hi';
+import { HiOutlineShieldCheck, HiOutlineRefresh } from 'react-icons/hi';
 import { adminService, paymentService } from '../../services/dataService';
 import { formatPrice } from '../../utils/helpers';
 import toast from 'react-hot-toast';
@@ -83,7 +83,7 @@ const AdminPayments = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {['', 'ESEWA', 'KHALTI', 'COD'].map((m) => (
               <button
                 key={m}
@@ -99,7 +99,7 @@ const AdminPayments = () => {
             ))}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {['', 'COMPLETED', 'PENDING', 'FAILED'].map((s) => (
               <button
                 key={s}

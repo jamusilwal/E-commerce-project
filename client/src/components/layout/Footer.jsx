@@ -1,40 +1,40 @@
 import { Link } from 'react-router-dom';
-import {
-  HiOutlineMail,
-  HiOutlinePhone,
-  HiOutlineLocationMarker,
-} from 'react-icons/hi';
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaTwitter,
-  FaYoutube,
-} from 'react-icons/fa';
+import { FaFacebookF, FaInstagram, FaTwitter, FaYoutube, FaApple, FaGooglePlay } from 'react-icons/fa';
+import { LuGlobe, LuChevronDown } from 'react-icons/lu';
 import { APP_NAME } from '../../utils/constants';
+import Logo from '../common/Logo';
 
-const footerLinks = {
-  shop: [
-    { label: 'All Products', to: '/products' },
-    { label: 'Categories', to: '/categories' },
-    { label: 'New Arrivals', to: '/products?sort=newest' },
-    { label: 'Best Sellers', to: '/products?sort=popularity' },
-    { label: 'Offers & Deals', to: '/products?discount=true' },
-  ],
-  company: [
-    { label: 'About Us', to: '/about' },
-    { label: 'Our Artisans', to: '/artisans' },
-    { label: 'Contact Us', to: '/contact' },
-    { label: 'FAQ', to: '/faq' },
-    { label: 'Become a Seller', to: '/seller/register' },
-  ],
-  support: [
-    { label: 'Shipping Info', to: '/shipping' },
-    { label: 'Returns & Exchanges', to: '/returns' },
-    { label: 'Privacy Policy', to: '/privacy' },
-    { label: 'Terms & Conditions', to: '/terms' },
-    { label: 'Help Center', to: '/help' },
-  ],
-};
+const footerColumns = [
+  {
+    title: 'Shop',
+    links: [
+      { label: 'All Categories', to: '/categories' },
+      { label: 'New Arrivals', to: '/products?sort=newest' },
+      { label: 'Best Sellers', to: '/products?sort=popularity' },
+      { label: 'Top Rated', to: '/products?sort=rating' },
+      { label: 'Handmade Gifts', to: '/products?category=handmade-gifts' },
+    ],
+  },
+  {
+    title: 'Customer Service',
+    links: [
+      { label: 'Track Order', to: '/orders' },
+      { label: 'Returns & Refunds', to: '/returns' },
+      { label: 'Shipping Info', to: '/shipping' },
+      { label: 'FAQ', to: '/faq' },
+      { label: 'Contact Us', to: '/contact' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About Us', to: '/about' },
+      { label: 'Our Artisans', to: '/about#artisans' },
+      { label: 'Sustainability', to: '/about#sustainability' },
+      { label: 'Become a Seller', to: '/seller/register' },
+    ],
+  },
+];
 
 const socialLinks = [
   { icon: FaFacebookF, href: '#', label: 'Facebook' },
@@ -43,163 +43,108 @@ const socialLinks = [
   { icon: FaYoutube, href: '#', label: 'YouTube' },
 ];
 
+const appStores = [
+  { icon: FaApple, small: 'Download on the', label: 'App Store' },
+  { icon: FaGooglePlay, small: 'Get it on', label: 'Google Play' },
+];
+
+const legalLinks = [
+  { label: 'Privacy Policy', to: '/privacy' },
+  { label: 'Terms of Service', to: '/terms' },
+  { label: 'Cookie Policy', to: '/cookies' },
+];
+
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-text text-white">
-      {/* Newsletter Section */}
-      <div className="bg-primary">
-        <div className="container-custom py-10 md:py-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left">
-              <h3 className="text-xl md:text-2xl font-bold text-white font-[Playfair_Display]">
-                Stay Updated with {APP_NAME}
-              </h3>
-              <p className="text-white/80 mt-1 text-sm">
-                Subscribe to get updates on new artisan products and exclusive offers.
-              </p>
-            </div>
-            <form className="flex w-full max-w-md" onSubmit={(e) => e.preventDefault()}>
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 rounded-l-xl bg-white/15 border border-white/20 text-white placeholder:text-white/60 text-sm focus:bg-white/20 focus:border-white/40 transition-all"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-accent hover:bg-accent-dark text-white font-semibold text-sm rounded-r-xl transition-all whitespace-nowrap"
-              >
-                Subscribe
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Footer */}
-      <div className="container-custom py-12 md:py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Brand Column */}
-          <div className="sm:col-span-2 lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl font-[Playfair_Display]">H</span>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white leading-none font-[Playfair_Display]">
-                  {APP_NAME}
-                </h2>
-                <p className="text-[10px] text-white/50 leading-none tracking-wider uppercase">
-                  Handmade Marketplace
-                </p>
-              </div>
-            </Link>
-            <p className="text-white/60 text-sm leading-relaxed mb-6">
-              A dedicated marketplace connecting Nepalese artisans with customers worldwide.
-              Every purchase supports local craftspeople and preserves traditional art forms.
+    <footer className="bg-primary-dark text-white">
+      <div className="container-custom pt-14 pb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr] gap-10 lg:gap-0">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-4 lg:col-span-1 lg:pr-10">
+            <Logo variant="light" />
+            <p className="text-white/65 text-sm leading-relaxed mt-5 max-w-xs">
+              Your one-stop shop for authentic handmade products across every category. Every
+              purchase supports local Nepalese artisans.
             </p>
-
-            {/* Contact Info */}
-            <div className="space-y-2.5">
-              <a
-                href="mailto:info@hamrolokbazar.com"
-                className="flex items-center gap-2.5 text-white/60 hover:text-accent transition-colors text-sm"
-              >
-                <HiOutlineMail className="w-4 h-4 shrink-0" />
-                info@hamrolokbazar.com
-              </a>
-              <a
-                href="tel:+9771234567890"
-                className="flex items-center gap-2.5 text-white/60 hover:text-accent transition-colors text-sm"
-              >
-                <HiOutlinePhone className="w-4 h-4 shrink-0" />
-                +977-1-234567890
-              </a>
-              <p className="flex items-center gap-2.5 text-white/60 text-sm">
-                <HiOutlineLocationMarker className="w-4 h-4 shrink-0" />
-                Kathmandu, Nepal
-              </p>
+            <div className="flex items-center gap-2.5 mt-6">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center text-white/80 hover:bg-white hover:text-primary-dark transition-all"
+                >
+                  <social.icon className="w-3.5 h-3.5" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Shop Links */}
-          <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Shop</h4>
-            <ul className="space-y-2.5">
-              {footerLinks.shop.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-white/60 hover:text-accent hover:translate-x-1 transition-all inline-block"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Link Columns */}
+          {footerColumns.map((column) => (
+            <div key={column.title} className="lg:border-l lg:border-white/10 lg:px-8">
+              <h4 className="text-sm font-semibold text-white font-sans mb-4">{column.title}</h4>
+              <ul className="space-y-2.5">
+                {column.links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.to}
+                      className="text-[13px] text-white/65 hover:text-sage transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          {/* Company Links */}
-          <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
-              Company
-            </h4>
-            <ul className="space-y-2.5">
-              {footerLinks.company.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-white/60 hover:text-accent hover:translate-x-1 transition-all inline-block"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
+          {/* App Download */}
+          <div className="col-span-2 md:col-span-1 lg:border-l lg:border-white/10 lg:pl-8">
+            <h4 className="text-sm font-semibold text-white font-sans mb-4">Download Our App</h4>
+            <p className="text-[13px] text-white/65 mb-4">Shop on the go with our mobile app.</p>
+            <div className="flex flex-row md:flex-col gap-2.5">
+              {appStores.map((store) => (
+                <a
+                  key={store.label}
+                  href="#"
+                  className="inline-flex items-center gap-2.5 w-40 px-3 py-2 bg-black rounded-lg border border-white/20 hover:border-white/50 transition-colors"
+                >
+                  <store.icon className="w-5 h-5 shrink-0" />
+                  <span className="leading-tight">
+                    <span className="block text-[9px] text-white/70 uppercase">{store.small}</span>
+                    <span className="block text-sm font-semibold">{store.label}</span>
+                  </span>
+                </a>
               ))}
-            </ul>
-          </div>
-
-          {/* Support Links */}
-          <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
-              Support
-            </h4>
-            <ul className="space-y-2.5">
-              {footerLinks.support.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm text-white/60 hover:text-accent hover:translate-x-1 transition-all inline-block"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Bottom Bar */}
       <div className="border-t border-white/10">
-        <div className="container-custom py-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-white/40 text-center md:text-left">
-            © {currentYear} {APP_NAME}. All rights reserved. Made with ❤️ in Nepal.
+        <div className="container-custom py-5 flex flex-col md:flex-row items-center gap-4 md:gap-10">
+          <p className="text-xs text-white/60">
+            © {currentYear} {APP_NAME}. All rights reserved.
           </p>
-
-          {/* Social Links */}
-          <div className="flex items-center gap-3">
-            {socialLinks.map((social) => (
-              <a
-                key={social.label}
-                href={social.href}
-                aria-label={social.label}
-                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:bg-accent hover:text-white transition-all"
-              >
-                <social.icon className="w-3.5 h-3.5" />
-              </a>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 md:ml-24">
+            {legalLinks.map((link) => (
+              <Link key={link.label} to={link.to} className="text-xs text-white/60 hover:text-white">
+                {link.label}
+              </Link>
             ))}
           </div>
+          <button
+            type="button"
+            className="md:ml-auto flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 text-xs text-white/80 hover:border-white/40"
+          >
+            <LuGlobe className="w-4 h-4" />
+            Nepal (NPR)
+            <LuChevronDown className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </footer>

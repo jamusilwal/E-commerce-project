@@ -10,10 +10,17 @@ import NotFound from './pages/public/NotFound';
 import EsewaSuccess from './pages/public/EsewaSuccess';
 import EsewaFailure from './pages/public/EsewaFailure';
 import KhaltiSuccess from './pages/public/KhaltiSuccess';
+import KhaltiSandbox from './pages/public/KhaltiSandbox';
+import Categories from './pages/public/Categories';
+import About from './pages/public/About';
+import Contact from './pages/public/Contact';
+import InfoPage from './pages/public/InfoPage';
 
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
 // Customer Protected Pages
 import Cart from './pages/customer/Cart';
@@ -27,6 +34,7 @@ import SellerDashboard from './pages/seller/SellerDashboard';
 import SellerRegister from './pages/seller/SellerRegister';
 import SellerProducts from './pages/seller/SellerProducts';
 import SellerAddProduct from './pages/seller/SellerAddProduct';
+import SellerOrders from './pages/seller/SellerOrders';
 
 // Admin Protected Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -45,12 +53,16 @@ function App() {
         <Route index element={<Home />} />
         <Route path="products" element={<Products />} />
         <Route path="products/:slug" element={<ProductDetail />} />
-        <Route path="categories" element={<Products />} />
-        <Route path="about" element={<Home />} />
-        <Route path="contact" element={<Home />} />
+        <Route path="categories" element={<Categories />} />
+        <Route path="about" element={<About />} />
+        <Route path="contact" element={<Contact />} />
+        {['shipping', 'returns', 'faq', 'privacy', 'terms', 'cookies'].map((path) => (
+          <Route key={path} path={path} element={<InfoPage />} />
+        ))}
         <Route path="payment/esewa/success" element={<EsewaSuccess />} />
         <Route path="payment/esewa/failure" element={<EsewaFailure />} />
         <Route path="payment/khalti/success" element={<KhaltiSuccess />} />
+        <Route path="payment/khalti/sandbox" element={<KhaltiSandbox />} />
 
         {/* Customer Cart & Checkout Routes (Admin Restricted) */}
         <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'SELLER']} />}>
@@ -75,6 +87,8 @@ function App() {
           <Route path="seller/dashboard" element={<SellerDashboard />} />
           <Route path="seller/products" element={<SellerProducts />} />
           <Route path="seller/products/new" element={<SellerAddProduct />} />
+          <Route path="seller/products/:id/edit" element={<SellerAddProduct />} />
+          <Route path="seller/orders" element={<SellerOrders />} />
         </Route>
 
         {/* Admin Dashboard inside MainLayout */}
@@ -87,14 +101,16 @@ function App() {
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="admin/payments" element={<AdminPayments />} />
         </Route>
+
+        {/* 404 Catch All (keeps the header and footer) */}
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Auth Pages (Standalone Layout) */}
       <Route path="auth/login" element={<Login />} />
       <Route path="auth/register" element={<Register />} />
-
-      {/* 404 Catch All */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="auth/forgot-password" element={<ForgotPassword />} />
+      <Route path="auth/reset-password/:token" element={<ResetPassword />} />
     </Routes>
   );
 }

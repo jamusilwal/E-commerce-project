@@ -1,14 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { paymentService } from '../../services/dataService';
+import { useCart } from '../../context/CartContext';
 import toast from 'react-hot-toast';
 
 const EsewaSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { fetchCart } = useCart();
   const [verifying, setVerifying] = useState(true);
+  // Verify only once, even when React re-runs effects in development
+  const started = useRef(false);
 
   useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+
     const encodedData = searchParams.get('data');
 
     if (!encodedData) {
@@ -20,7 +27,8 @@ const EsewaSuccess = () => {
       try {
         const res = await paymentService.verifyEsewa(encodedData);
         toast.success('eSewa Payment Confirmed!');
-        navigate(`/orders/${res.data.data.id}`);
+        await fetchCart();
+        navigate(`/orders/${res.data.data.id}`, { replace: true });
       } catch (err) {
         toast.error(err.response?.data?.message || 'Payment verification failed');
         setVerifying(false);
@@ -28,10 +36,10 @@ const EsewaSuccess = () => {
     };
 
     verify();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, fetchCart]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface p-4 text-center">
+    <div className="min-h-[70vh] flex items-center justify-center bg-background p-4 text-center">
       {verifying ? (
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -44,7 +52,7 @@ const EsewaSuccess = () => {
         </div>
       ) : (
         <div>
-          <span className="text-5xl">❌</span>
+          <span className="w-16 h-16 mx-auto rounded-full bg-error-light text-error text-3xl font-bold flex items-center justify-center">!</span>
           <h2 className="text-xl font-bold text-text mt-4">Verification Failed</h2>
           <p className="text-xs text-text-light mt-1">
             Could not verify your eSewa payment. Please check your order details.

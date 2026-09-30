@@ -1,28 +1,38 @@
 @import "tailwindcss";
 
 /* ============================================
-   HAMROLOK BAZAR — Design System
+   HAMROLOK BAZAR — Design System (Viva-inspired storefront)
    ============================================ */
 
 @theme {
-  /* Brand Colors */
-  --color-primary: #8B1E3F;
-  --color-primary-light: #A83258;
-  --color-primary-dark: #6D1730;
-  --color-secondary: #F8F4EC;
-  --color-secondary-dark: #EDE7D9;
-  --color-accent: #D4AF37;
-  --color-accent-light: #E0C35C;
-  --color-accent-dark: #B8962E;
+  /* Brand Colors — deep forest green, cream and sage */
+  --color-primary: #1B4332;
+  --color-primary-light: #2D6A4F;
+  --color-primary-dark: #0F2E22;
+  --color-secondary: #F3EFE6;
+  --color-secondary-dark: #E7E1D3;
+  --color-accent: #C8963E;
+  --color-accent-light: #E0B865;
+  --color-accent-dark: #A57A2C;
+
+  /* Storefront Accents */
+  --color-sage: #DDE7C7;
+  --color-sage-dark: #C9D8AC;
+  --color-sale: #F28072;
+  --color-price: #9B1C2C;
+  --color-star: #F2B01E;
+  --color-promo-green: #E3EAD3;
+  --color-promo-peach: #F4E6D6;
+  --color-promo-blue: #DCE8F1;
 
   /* Neutral Colors */
-  --color-background: #FFFFFF;
-  --color-surface: #FAFAFA;
-  --color-text: #2D2D2D;
-  --color-text-light: #6B7280;
-  --color-text-muted: #9CA3AF;
-  --color-border: #E5E7EB;
-  --color-border-light: #F3F4F6;
+  --color-background: #FAF9F6;
+  --color-surface: #F5F4EF;
+  --color-text: #1F2A24;
+  --color-text-light: #5E6B64;
+  --color-text-muted: #95A09A;
+  --color-border: #E4E3DC;
+  --color-border-light: #EFEEE8;
 
   /* Semantic Colors */
   --color-success: #059669;
@@ -34,7 +44,7 @@
   --color-info: #2563EB;
   --color-info-light: #DBEAFE;
 
-  /* Typography */
+/* Typography */
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-display: 'Playfair Display', 'Georgia', serif;
 

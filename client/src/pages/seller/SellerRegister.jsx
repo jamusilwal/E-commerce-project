@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import {
@@ -31,8 +31,7 @@ const CRAFT_CATEGORIES = [
 ];
 
 const SellerRegister = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   const [existingProfile, setExistingProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,7 +39,6 @@ const SellerRegister = () => {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -51,6 +49,11 @@ const SellerRegister = () => {
 
   useEffect(() => {
     const checkSellerStatus = async () => {
+      // Only seller accounts can have a shop profile — skip the (403) lookup for customers
+      if (user?.role !== 'SELLER') {
+        setLoading(false);
+        return;
+      }
       try {
         const res = await sellerService.getDashboard();
         if (res.data?.data?.profile) {
@@ -64,7 +67,7 @@ const SellerRegister = () => {
     };
 
     checkSellerStatus();
-  }, []);
+  }, [user?.role]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -78,10 +81,16 @@ const SellerRegister = () => {
         panNumber: data.panNumber || undefined,
       };
 
-      await sellerService.registerSeller(payload);
+      const regRes = await sellerService.registerSeller(payload);
       toast.success('Artisan Application Submitted for Admin Approval!');
-      const res = await sellerService.getDashboard();
-      setExistingProfile(res.data.data.profile);
+      // The server upgrades the account to SELLER — pick up the new role
+      await refreshUser();
+      try {
+        const res = await sellerService.getDashboard();
+        setExistingProfile(res.data.data.profile);
+      } catch {
+        setExistingProfile(regRes.data.data?.profile || regRes.data.data || { status: 'PENDING', shopName: payload.shopName });
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit artisan application');
     } finally {

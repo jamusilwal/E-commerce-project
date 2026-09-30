@@ -55,7 +55,10 @@ api.interceptors.response.use(
       url.includes('/auth/refresh-token');
 
     // If 401 and not an auth endpoint and not already retrying
-    if (error.response?.status === 401 && !isAuthEndpoint && !originalRequest._retry) {
+    // Guests have no session to refresh — just surface the 401
+    const hasSession = !!localStorage.getItem('accessToken');
+
+    if (error.response?.status === 401 && hasSession && !isAuthEndpoint && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

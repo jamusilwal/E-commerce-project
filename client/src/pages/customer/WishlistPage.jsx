@@ -4,58 +4,46 @@ import { motion } from 'framer-motion';
 import { HiOutlineHeart, HiOutlineTrash, HiOutlineShoppingBag } from 'react-icons/hi';
 import { wishlistService } from '../../services/dataService';
 import { useCart } from '../../context/CartContext';
-import { formatPrice } from '../../utils/helpers';
+import { useWishlist } from '../../context/WishlistContext';
+import { formatPrice, getProductImage, handleImageError } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const WishlistPage = () => {
-  const [wishlist, setWishlist] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { addToCart } = useCart();
+  const { items, loading, removeFromWishlist, fetchWishlist } = useWishlist();
+  const { fetchCart } = useCart();
+  const [busyId, setBusyId] = useState(null);
 
-  const fetchWishlist = async () => {
-    try {
-      const res = await wishlistService.getWishlist();
-      setWishlist(res.data.data);
-    } catch {
-      setWishlist(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Always show fresh data when the page opens
   useEffect(() => {
     fetchWishlist();
-  }, []);
+  }, [fetchWishlist]);
 
   const handleRemove = async (productId) => {
-    try {
-      await wishlistService.removeFromWishlist(productId);
-      toast.success('Removed from wishlist');
-      fetchWishlist();
-    } catch {
-      toast.error('Failed to remove');
-    }
+    setBusyId(productId);
+    await removeFromWishlist(productId);
+    setBusyId(null);
   };
 
   const handleMoveToCart = async (productId) => {
+    setBusyId(productId);
     try {
       await wishlistService.moveToCart(productId);
       toast.success('Moved to cart!');
-      fetchWishlist();
-    } catch {
-      toast.error('Failed to move to cart');
+      await Promise.all([fetchWishlist(), fetchCart()]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to move to cart');
+    } finally {
+      setBusyId(null);
     }
   };
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
-
-  const items = wishlist?.items || [];
 
   return (
     <div className="bg-surface py-10 min-h-screen">
@@ -92,13 +80,16 @@ const WishlistPage = () => {
                 <div>
                   <div className="aspect-square bg-surface relative">
                     <img
-                      src={item.product?.images?.[0]?.url || 'https://placehold.co/400x400'}
+                      src={getProductImage(item.product)}
                       alt={item.product?.name}
+                      onError={handleImageError}
                       className="w-full h-full object-cover"
                     />
                     <button
                       onClick={() => handleRemove(item.productId)}
-                      className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full text-error hover:bg-error hover:text-white transition-all shadow-sm"
+                      disabled={busyId === item.productId}
+                      aria-label={`Remove ${item.product?.name} from wishlist`}
+                      className="disabled:opacity-50 absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full text-error hover:bg-error hover:text-white transition-all shadow-sm"
                       title="Remove"
                     >
                       <HiOutlineTrash className="w-4 h-4" />
@@ -121,7 +112,8 @@ const WishlistPage = () => {
                 <div className="p-4 pt-0">
                   <button
                     onClick={() => handleMoveToCart(item.productId)}
-                    className="w-full py-2.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+                    disabled={busyId === item.productId}
+                    className="disabled:opacity-50 w-full py-2.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
                   >
                     <HiOutlineShoppingBag className="w-4 h-4" />
                     Move to Cart

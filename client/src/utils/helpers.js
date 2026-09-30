@@ -1,3 +1,23 @@
+import { PLACEHOLDER_IMAGE } from './constants';
+
+/**
+ * <img onError> handler — swaps a broken image for the local placeholder once
+ * @param {Event} e
+ */
+export const handleImageError = (e) => {
+  const img = e.currentTarget;
+  if (img.dataset.fallback) return;
+  img.dataset.fallback = '1';
+  img.src = PLACEHOLDER_IMAGE;
+};
+
+/**
+ * First image URL of a product, or the placeholder
+ * @param {Object} product
+ * @returns {string}
+ */
+export const getProductImage = (product) => product?.images?.[0]?.url || PLACEHOLDER_IMAGE;
+
 /**
  * Format price to Nepalese Rupees
  * @param {number} amount

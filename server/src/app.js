@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import env from './config/env.js';
+import { corsOptions, enforceHttps, securityHeaders } from './config/security.js';
 import prisma from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import { authenticate } from './middleware/auth.js';
@@ -29,36 +29,21 @@ const app = express();
 // Security Middleware
 // ============================================
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-);
+// Behind a TLS-terminating proxy, trust X-Forwarded-Proto / -For (see TRUST_PROXY in .env)
+if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
+  const value = env.TRUST_PROXY;
+  // "1" = one proxy hop, "true" = trust all, otherwise an IP/subnet list such as "loopback"
+  app.set('trust proxy', value === 'true' ? true : /^\d+$/.test(value) ? Number(value) : value);
+}
 
-// CORS — dynamic origin handling for local dev & production
-const allowedOrigins = [
-  env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-];
+// Redirect http:// to https:// (production default, see FORCE_HTTPS)
+app.use(enforceHttps);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
-      if (env.isDev || allowedOrigins.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  })
-);
+// Security headers incl. Strict-Transport-Security (see HSTS_ENABLED)
+app.use(securityHeaders);
+
+// CORS — only the configured frontend origin(s); localhost is also allowed outside production
+app.use(cors(corsOptions));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

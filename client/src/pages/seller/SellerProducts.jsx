@@ -11,7 +11,7 @@ import {
   HiOutlineEye,
 } from 'react-icons/hi';
 import { productService } from '../../services/dataService';
-import { formatPrice } from '../../utils/helpers';
+import { formatPrice, handleImageError } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const SellerProducts = () => {
@@ -45,7 +45,8 @@ const SellerProducts = () => {
     try {
       await productService.deleteProduct(id);
       toast.success('Product deleted successfully');
-      fetchProducts(page);
+      if (products.length === 1 && page > 1) setPage(page - 1);
+      else fetchProducts(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete product');
     } finally {
@@ -102,6 +103,13 @@ const SellerProducts = () => {
           <div className="flex items-center justify-center py-20">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : products.length > 0 && filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-border-light p-10 text-center text-sm text-text-light">
+            No products on this page match “{search}”.{' '}
+            <button onClick={() => setSearch('')} className="font-semibold text-primary hover:underline">
+              Clear search
+            </button>
+          </div>
         ) : filteredProducts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -140,6 +148,7 @@ const SellerProducts = () => {
                       <img
                         src={product.images[0].url}
                         alt={product.name}
+                        onError={handleImageError}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -157,7 +166,7 @@ const SellerProducts = () => {
                         <span className="text-primary font-bold text-sm">
                           {formatPrice(product.price)}
                         </span>
-                        {product.comparePrice && (
+                        {product.comparePrice > product.price && (
                           <span className="text-text-muted text-xs line-through">
                             {formatPrice(product.comparePrice)}
                           </span>
@@ -182,7 +191,7 @@ const SellerProducts = () => {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <Link
                         to={`/products/${product.slug}`}
-                        className="p-2.5 rounded-xl bg-surface hover:bg-surface-alt text-text-muted hover:text-text transition"
+                        className="p-2.5 rounded-xl bg-surface hover:bg-border-light text-text-muted hover:text-text transition"
                         title="View product page"
                       >
                         <HiOutlineEye className="w-4 h-4" />

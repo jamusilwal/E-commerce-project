@@ -1,7 +1,7 @@
 {
   "name": "hamrolok-bazar-server",
   "version": "1.0.0",
-  "description": "HAMROLOK BAZAR — Backend API for Nepalese Handmade Marketplace",
+  "description": "HAMROLOK BAZAR \u2014 Backend API for Nepalese Handmade Marketplace",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:studio": "npx prisma studio",
     "prisma:seed": "node prisma/seed.js",
-    "prisma:reset": "npx prisma migrate reset"
+    "prisma:reset": "npx prisma migrate reset",
+    "cert:dev": "node scripts/generate-dev-cert.js"
   },
   "keywords": [
     "ecommerce",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "prisma": "^6.7.0"
+    "prisma": "^6.7.0",
+    "selfsigned": "^2.4.1"
   }
 }

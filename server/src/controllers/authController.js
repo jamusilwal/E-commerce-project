@@ -1,6 +1,7 @@
 import AuthService from '../services/authService.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { refreshCookieOptions } from '../config/security.js';
 
 /**
  * Auth Controller — handles authentication HTTP requests
@@ -48,11 +49,7 @@ export const logout = asyncHandler(async (req, res) => {
   await AuthService.logout(req.user.id);
 
   // Clear refresh token cookie
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  });
+  res.clearCookie('refreshToken', refreshCookieOptions());
 
   return ApiResponse.ok(res, 'Logged out successfully');
 });
@@ -124,11 +121,5 @@ export const changePassword = asyncHandler(async (req, res) => {
  * Helper — set refresh token as secure httpOnly cookie
  */
 function setRefreshTokenCookie(res, token) {
-  res.cookie('refreshToken', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/',
-  });
+  res.cookie('refreshToken', token, refreshCookieOptions(7 * 24 * 60 * 60 * 1000)); // 7 days
 }

@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
  */
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, loading, isAuthenticated } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
+  // A cached user can render right away; only block when we don't know yet
+  if (loading && !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="flex flex-col items-center gap-3">
@@ -20,7 +22,8 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" replace />;
+    // Remember where the visitor was headed so login can send them back
+    return <Navigate to="/auth/login" replace state={{ from: location }} />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {

@@ -1,0 +1,7 @@
+# Local TLS certificates (never commit private keys)
+certs/
+*.pem
+*.key
+
+# OS files
+.DS_Store

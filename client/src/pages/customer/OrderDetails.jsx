@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   HiOutlineCheckCircle,
-  HiOutlineClock,
-  HiOutlineTruck,
   HiOutlineDownload,
   HiOutlineXCircle,
 } from 'react-icons/hi';
-import { orderService } from '../../services/dataService';
-import { formatPrice, formatDateTime, getStatusColor } from '../../utils/helpers';
+import { orderService, paymentService } from '../../services/dataService';
+import { formatPrice, formatDateTime, getStatusColor, getProductImage, handleImageError } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const trackingSteps = [
@@ -26,6 +23,8 @@ const OrderDetails = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingBill, setDownloadingBill] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -51,6 +50,35 @@ const OrderDetails = () => {
       setOrder(res.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to cancel order');
+    }
+  };
+
+  const handleRetryPayment = async () => {
+    setPaying(true);
+    try {
+      if (order.payment?.method === 'ESEWA') {
+        const res = await paymentService.initiateEsewa(order.id);
+        const data = res.data.data;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = data.gateway_url;
+        Object.entries(data).forEach(([key, value]) => {
+          if (key === 'gateway_url') return;
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      }
+      const res = await paymentService.initiateKhalti(order.id);
+      window.location.href = res.data.data.paymentUrl;
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not start payment');
+      setPaying(false);
     }
   };
 
@@ -97,8 +125,6 @@ const OrderDetails = () => {
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
-  const [downloadingBill, setDownloadingBill] = useState(false);
-
   const handleDownloadBill = async () => {
     try {
       setDownloadingBill(true);
@@ -122,6 +148,12 @@ const OrderDetails = () => {
 
   // Bill is available for confirmed and beyond (not PENDING or CANCELLED)
   const billAvailable = !['PENDING', 'CANCELLED'].includes(order.status);
+
+  // Online payments that never completed can be retried from here
+  const canRetryPayment =
+    !isCancelled &&
+    ['ESEWA', 'KHALTI'].includes(order.payment?.method) &&
+    order.payment?.status !== 'COMPLETED';
 
   return (
     <div className="bg-surface py-10 min-h-screen">
@@ -158,6 +190,15 @@ const OrderDetails = () => {
               <span>📱</span>
               <span>Send to WhatsApp</span>
             </button>
+            {canRetryPayment && (
+              <button
+                onClick={handleRetryPayment}
+                disabled={paying}
+                className="px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              >
+                {paying ? 'Redirecting…' : `Complete Payment (${order.payment.method})`}
+              </button>
+            )}
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
               {order.status.replace(/_/g, ' ')}
             </span>
@@ -218,8 +259,9 @@ const OrderDetails = () => {
                   <div key={item.id} className="flex items-center justify-between border-b border-border-light pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center gap-4">
                       <img
-                        src={item.product?.images?.[0]?.url || 'https://placehold.co/80x80'}
+                        src={getProductImage(item.product)}
                         alt={item.product?.name}
+                        onError={handleImageError}
                         className="w-16 h-16 rounded-xl object-cover bg-surface"
                       />
                       <div>
@@ -249,8 +291,14 @@ const OrderDetails = () => {
               <p className="text-xs font-semibold text-text">{order.address?.fullName}</p>
               <p className="text-xs text-text-light mt-1">Ph: {order.address?.phone}</p>
               <p className="text-xs text-text-muted mt-1 leading-relaxed">
-                {order.address?.municipality}-{order.address?.ward}, {order.address?.district},{' '}
-                {order.address?.province}
+                {[
+                  order.address?.street,
+                  order.address?.ward ? `${order.address.municipality}-${order.address.ward}` : order.address?.municipality,
+                  order.address?.district,
+                  order.address?.province,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
               </p>
             </div>
 
@@ -263,7 +311,17 @@ const OrderDetails = () => {
               </div>
               <div className="flex justify-between text-xs text-text-light">
                 <span>Payment Status</span>
-                <span className="font-bold text-success">{order.payment?.status}</span>
+                <span
+                  className={`font-bold ${
+                    order.payment?.status === 'COMPLETED'
+                      ? 'text-success'
+                      : order.payment?.status === 'FAILED'
+                        ? 'text-error'
+                        : 'text-warning'
+                  }`}
+                >
+                  {order.payment?.status || 'PENDING'}
+                </span>
               </div>
               <div className="border-t border-border-light pt-3 space-y-1.5 text-xs text-text-light">
                 <div className="flex justify-between">
@@ -274,6 +332,12 @@ const OrderDetails = () => {
                   <span>Delivery Charge</span>
                   <span>{order.deliveryCharge === 0 ? 'FREE' : formatPrice(order.deliveryCharge)}</span>
                 </div>
+                {order.discount > 0 && (
+                  <div className="flex justify-between text-success">
+                    <span>Discount</span>
+                    <span>-{formatPrice(order.discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-bold text-text border-t border-border-light pt-2">
                   <span>Grand Total</span>
                   <span className="text-primary">{formatPrice(order.grandTotal)}</span>

@@ -1,37 +1,41 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineExclamationCircle, HiOutlineArrowLeft, HiOutlineShoppingBag } from 'react-icons/hi';
+import { HiOutlineExclamationCircle, HiOutlineArrowLeft, HiOutlineClipboardList } from 'react-icons/hi';
 
+/**
+ * Shown when a customer cancels or fails an eSewa payment.
+ * The order already exists (cart was emptied when it was created), so the way
+ * forward is to retry payment from the order page, not to check out again.
+ */
 const EsewaFailure = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center bg-surface p-4 text-center">
-      <div className="max-w-md w-full bg-surface-card p-8 rounded-2xl border border-border shadow-sm">
-        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+    <div className="min-h-[70vh] flex items-center justify-center bg-background p-4 text-center">
+      <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-border-light shadow-card">
+        <div className="w-16 h-16 bg-error-light text-error rounded-full flex items-center justify-center mx-auto mb-4">
           <HiOutlineExclamationCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-bold text-text font-[Playfair_Display]">
-          Payment Not Completed
-        </h2>
+        <h2 className="text-2xl font-bold text-text">Payment Not Completed</h2>
         <p className="text-sm text-text-light mt-2 leading-relaxed">
-          Your eSewa transaction was cancelled or could not be processed. No funds were charged from your account.
+          Your eSewa transaction was cancelled or could not be processed, and no money was taken. Your order
+          is saved — you can complete the payment from your order page.
         </p>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            to="/checkout"
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-xl text-sm hover:bg-primary-dark transition"
+            to={orderId ? `/orders/${orderId}` : '/orders'}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-xl text-sm hover:bg-primary-light transition"
           >
-            <HiOutlineShoppingBag className="w-4 h-4" />
-            Retry Checkout
+            <HiOutlineClipboardList className="w-4 h-4" />
+            {orderId ? 'View Order & Retry' : 'View My Orders'}
           </Link>
           <Link
-            to="/orders"
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-surface border border-border text-text font-semibold rounded-xl text-sm hover:bg-surface-alt transition"
+            to="/products"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-border text-text font-semibold rounded-xl text-sm hover:bg-surface transition"
           >
             <HiOutlineArrowLeft className="w-4 h-4" />
-            View Orders
+            Continue Shopping
           </Link>
         </div>
       </div>

@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { motion } from 'framer-motion';
 import { HiOutlineCheckCircle, HiOutlineCreditCard, HiOutlineLocationMarker } from 'react-icons/hi';
 import { addressService, orderService, paymentService } from '../../services/dataService';
 import { useCart } from '../../context/CartContext';
-import { PROVINCES, PAYMENT_METHODS } from '../../utils/constants';
+import { PROVINCES, PAYMENT_METHODS, FREE_DELIVERY_THRESHOLD, DELIVERY_FEE } from '../../utils/constants';
 import { formatPrice } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const Checkout = () => {
-  const { cart, subtotal, clearCart } = useCart();
+  const { cart, subtotal, loading: cartLoading, fetchCart } = useCart();
   const navigate = useNavigate();
 
   const [addresses, setAddresses] = useState([]);
@@ -19,7 +18,9 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS.COD);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const deliveryFee = subtotal >= 5000 ? 0 : 150;
+  const [addressesLoading, setAddressesLoading] = useState(true);
+
+  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE;
   const grandTotal = subtotal + deliveryFee;
 
   const {
@@ -34,7 +35,7 @@ const Checkout = () => {
     const fetchAddresses = async () => {
       try {
         const res = await addressService.getAddresses();
-        const list = res.data.data;
+        const list = Array.isArray(res.data.data) ? res.data.data : [];
         setAddresses(list);
         if (list.length > 0) {
           const defaultAddr = list.find((a) => a.isDefault) || list[0];
@@ -44,6 +45,8 @@ const Checkout = () => {
         }
       } catch {
         setShowAddressForm(true);
+      } finally {
+        setAddressesLoading(false);
       }
     };
 
@@ -102,41 +105,71 @@ const Checkout = () => {
     }
 
     setIsSubmitting(true);
+    let order = null;
+    let toastId;
     try {
-      // 1. Create order
+      // 1. Create order (the server empties the cart once the order exists)
       const orderRes = await orderService.createOrder({
         addressId: selectedAddressId,
         paymentMethod,
       });
-      const order = orderRes.data.data;
+      order = orderRes.data.data;
 
       // 2. Handle Payment Gateway Flows
       if (paymentMethod === PAYMENT_METHODS.ESEWA) {
-        toast.loading('Redirecting to eSewa Gateway...');
+        toastId = toast.loading('Redirecting to eSewa…');
         const payRes = await paymentService.initiateEsewa(order.id);
-        clearCart();
         submitEsewaForm(payRes.data.data);
         return;
       }
 
       if (paymentMethod === PAYMENT_METHODS.KHALTI) {
-        toast.loading('Redirecting to Khalti Gateway...');
+        toastId = toast.loading('Redirecting to Khalti…');
         const payRes = await paymentService.initiateKhalti(order.id);
-        clearCart();
         window.location.href = payRes.data.data.paymentUrl;
         return;
       }
 
       // COD Flow
       toast.success('Order placed successfully!');
-      clearCart();
+      await fetchCart();
       navigate(`/orders/${order.id}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      if (toastId) toast.dismiss(toastId);
+      if (order) {
+        // The order exists but the gateway could not be reached
+        toast.error(err.response?.data?.message || 'Payment could not be started. You can retry from your order.');
+        await fetchCart();
+        navigate(`/orders/${order.id}`);
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to place order');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const fieldError = (name) =>
+    errors[name] ? <p className="text-xs text-error mt-1">{errors[name].message}</p> : null;
+
+  const inputClass = (name) =>
+    `w-full p-2.5 bg-surface border rounded-xl text-sm focus:border-primary ${
+      errors[name] ? 'border-error' : 'border-border'
+    }`;
+
+  const payLabel = {
+    [PAYMENT_METHODS.ESEWA]: 'Pay with eSewa',
+    [PAYMENT_METHODS.KHALTI]: 'Pay with Khalti',
+    [PAYMENT_METHODS.COD]: 'Place Order (Cash on Delivery)',
+  };
+
+  if (cartLoading && !cart) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!cart?.items || cart.items.length === 0) {
     return (
@@ -183,10 +216,12 @@ const Checkout = () => {
               {!showAddressForm && addresses.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {addresses.map((addr) => (
-                    <div
+                    <button
+                      type="button"
                       key={addr.id}
                       onClick={() => setSelectedAddressId(addr.id)}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                      aria-pressed={selectedAddressId === addr.id}
+                      className={`text-left p-4 rounded-xl border cursor-pointer transition-all ${
                         selectedAddressId === addr.id
                           ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                           : 'border-border-light hover:border-border'
@@ -200,10 +235,11 @@ const Checkout = () => {
                       </div>
                       <p className="text-xs text-text-light mt-1">Ph: {addr.phone}</p>
                       <p className="text-xs text-text-muted mt-1 leading-relaxed">
-                        {addr.municipality}-{addr.ward ? `W${addr.ward}, ` : ''} {addr.district},{' '}
-                        {addr.province}
+                        {[addr.street, addr.ward ? `${addr.municipality}-${addr.ward}` : addr.municipality, addr.district, addr.province]
+                          .filter(Boolean)
+                          .join(', ')}
                       </p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -218,9 +254,10 @@ const Checkout = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full p-2.5 bg-surface border border-border rounded-xl text-sm"
-                        {...register('fullName', { required: true })}
+                        className={inputClass('fullName')}
+                        {...register('fullName', { required: 'Full name is required' })}
                       />
+                      {fieldError('fullName')}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-light mb-1">
@@ -229,9 +266,16 @@ const Checkout = () => {
                       <input
                         type="tel"
                         placeholder="9800000000"
-                        className="w-full p-2.5 bg-surface border border-border rounded-xl text-sm"
-                        {...register('phone', { required: true })}
+                        className={inputClass('phone')}
+                        {...register('phone', {
+                          required: 'Mobile number is required',
+                          pattern: {
+                            value: /^(\+977)?9[6-9]\d{8}$/,
+                            message: 'Enter a valid Nepali mobile number (e.g. 9800000000)',
+                          },
+                        })}
                       />
+                      {fieldError('phone')}
                     </div>
                   </div>
 
@@ -241,8 +285,8 @@ const Checkout = () => {
                         Province
                       </label>
                       <select
-                        className="w-full p-2.5 bg-surface border border-border rounded-xl text-sm"
-                        {...register('province', { required: true })}
+                        className={inputClass('province')}
+                        {...register('province', { required: 'Please select a province' })}
                       >
                         <option value="">Select Province</option>
                         {PROVINCES.map((p) => (
@@ -251,6 +295,7 @@ const Checkout = () => {
                           </option>
                         ))}
                       </select>
+                      {fieldError('province')}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-light mb-1">
@@ -259,9 +304,10 @@ const Checkout = () => {
                       <input
                         type="text"
                         placeholder="Kathmandu"
-                        className="w-full p-2.5 bg-surface border border-border rounded-xl text-sm"
-                        {...register('district', { required: true })}
+                        className={inputClass('district')}
+                        {...register('district', { required: 'District is required' })}
                       />
+                      {fieldError('district')}
                     </div>
                   </div>
 
@@ -273,9 +319,10 @@ const Checkout = () => {
                       <input
                         type="text"
                         placeholder="Kathmandu Metro"
-                        className="w-full p-2.5 bg-surface border border-border rounded-xl text-sm"
-                        {...register('municipality', { required: true })}
+                        className={inputClass('municipality')}
+                        {...register('municipality', { required: 'Municipality is required' })}
                       />
+                      {fieldError('municipality')}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-light mb-1">
@@ -331,9 +378,11 @@ const Checkout = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* eSewa */}
-                <div
+                <button
+                  type="button"
                   onClick={() => setPaymentMethod(PAYMENT_METHODS.ESEWA)}
-                  className={`p-5 rounded-2xl border cursor-pointer text-center transition-all ${
+                  aria-pressed={paymentMethod === PAYMENT_METHODS.ESEWA}
+                  className={`w-full p-5 rounded-2xl border cursor-pointer text-center transition-all ${
                     paymentMethod === PAYMENT_METHODS.ESEWA
                       ? 'border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/20 font-bold shadow-sm'
                       : 'border-border-light hover:border-border'
@@ -345,12 +394,14 @@ const Checkout = () => {
                   <p className="text-sm font-bold text-text">eSewa ePay</p>
                   <p className="text-[10px] text-text-muted mt-0.5">UAT Sandbox / Live</p>
                   <span className="inline-block mt-1 text-[9px] font-mono bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">ID: 9849511111</span>
-                </div>
+                </button>
 
                 {/* Khalti */}
-                <div
+                <button
+                  type="button"
                   onClick={() => setPaymentMethod(PAYMENT_METHODS.KHALTI)}
-                  className={`p-5 rounded-2xl border cursor-pointer text-center transition-all ${
+                  aria-pressed={paymentMethod === PAYMENT_METHODS.KHALTI}
+                  className={`w-full p-5 rounded-2xl border cursor-pointer text-center transition-all ${
                     paymentMethod === PAYMENT_METHODS.KHALTI
                       ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20 font-bold shadow-sm'
                       : 'border-border-light hover:border-border'
@@ -361,12 +412,14 @@ const Checkout = () => {
                   </div>
                   <p className="text-sm font-bold text-text">Khalti SDK</p>
                   <p className="text-[10px] text-text-muted mt-1">Direct wallet &amp; netbanking</p>
-                </div>
+                </button>
 
                 {/* Cash on Delivery */}
-                <div
+                <button
+                  type="button"
                   onClick={() => setPaymentMethod(PAYMENT_METHODS.COD)}
-                  className={`p-5 rounded-2xl border cursor-pointer text-center transition-all ${
+                  aria-pressed={paymentMethod === PAYMENT_METHODS.COD}
+                  className={`w-full p-5 rounded-2xl border cursor-pointer text-center transition-all ${
                     paymentMethod === PAYMENT_METHODS.COD
                       ? 'border-primary bg-primary/5 ring-2 ring-primary/20 font-bold shadow-sm'
                       : 'border-border-light hover:border-border'
@@ -375,7 +428,7 @@ const Checkout = () => {
                   <span className="text-3xl mb-1 block">💵</span>
                   <p className="text-sm font-bold text-text">Cash on Delivery</p>
                   <p className="text-[10px] text-text-muted mt-1">Pay upon receiving package</p>
-                </div>
+                </button>
               </div>
             </div>
           </div>
@@ -416,15 +469,18 @@ const Checkout = () => {
 
             <button
               onClick={handlePlaceOrder}
-              disabled={isSubmitting}
+              disabled={isSubmitting || addressesLoading || !selectedAddressId}
               className="w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                `Pay with ${paymentMethod}`
+                payLabel[paymentMethod]
               )}
             </button>
+            {!addressesLoading && !selectedAddressId && (
+              <p className="text-xs text-text-muted text-center">Add a shipping address to continue.</p>
+            )}
           </div>
         </div>
       </div>

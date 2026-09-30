@@ -269,24 +269,42 @@ export const createProduct = asyncHandler(async (req, res) => {
 
 // PUT /api/products/:id — seller only (own products)
 export const updateProduct = asyncHandler(async (req, res) => {
-  const seller = await prisma.sellerProfile.findUnique({
-    where: { userId: req.user.id },
-  });
-
-  const existing = await prisma.product.findFirst({
-    where: { id: req.params.id, sellerId: seller?.id },
-  });
+  // Admins may edit any product; sellers only their own
+  let existing;
+  if (req.user.role === 'ADMIN') {
+    existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+  } else {
+    const seller = await prisma.sellerProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+    existing = await prisma.product.findFirst({
+      where: { id: req.params.id, sellerId: seller?.id },
+    });
+  }
 
   if (!existing) {
     throw ApiError.notFound('Product not found or access denied');
   }
 
-  const { quantity, ...productData } = req.body;
+  const { quantity } = req.body;
 
-  // Convert numeric fields
-  if (productData.price) productData.price = parseFloat(productData.price);
-  if (productData.comparePrice) productData.comparePrice = parseFloat(productData.comparePrice);
-  if (productData.weight) productData.weight = parseFloat(productData.weight);
+  // Only copy fields that are meant to be editable (prevents changing sellerId, ratings, etc.)
+  const editable = [
+    'name', 'description', 'shortDescription', 'materials', 'price', 'comparePrice', 'categoryId',
+    'estimatedDelivery', 'weight', 'dimensions', 'tags', 'isActive', 'sku',
+  ];
+  if (req.user.role === 'ADMIN') editable.push('isFeatured');
+  const productData = Object.fromEntries(
+    Object.entries(req.body).filter(([key, value]) => editable.includes(key) && value !== undefined)
+  );
+
+  // Convert numeric fields ('' or null clears optional numbers)
+  if (productData.price !== undefined) productData.price = parseFloat(productData.price);
+  for (const key of ['comparePrice', 'weight']) {
+    if (key in productData) {
+      productData[key] = productData[key] === '' || productData[key] === null ? null : parseFloat(productData[key]);
+    }
+  }
 
   const product = await prisma.product.update({
     where: { id: req.params.id },

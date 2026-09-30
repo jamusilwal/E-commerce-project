@@ -4,7 +4,7 @@ import { HiOutlineHome } from 'react-icons/hi';
 
 const NotFound = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-white to-secondary px-4">
+    <div className="min-h-[70vh] flex items-center justify-center bg-background px-4 py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -13,12 +13,10 @@ const NotFound = () => {
       >
         {/* 404 Number */}
         <div className="relative inline-block mb-6">
-          <span className="text-[120px] sm:text-[180px] font-bold text-primary/5 leading-none font-[Playfair_Display]">
+          <span className="text-[120px] sm:text-[180px] font-bold text-primary/15 leading-none font-[Playfair_Display]">
             404
           </span>
-          <span className="absolute inset-0 flex items-center justify-center text-6xl">
-            🏺
-          </span>
+
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-text">
@@ -29,10 +27,10 @@ const NotFound = () => {
           in the Himalayas. Let&apos;s get you back on track.
         </p>
 
-        <div className="flex items-center justify-center gap-4 mt-8">
+        <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all group"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-light text-white font-semibold rounded-xl transition-all group"
           >
             <HiOutlineHome className="w-5 h-5" />
             Back to Home

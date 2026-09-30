@@ -1,7 +1,25 @@
 // API & App Constants
 
 // API Base URL
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// Defaults to the same origin ("/api", proxied to the backend by Vite in development), so it
+// always uses the page's protocol. Set VITE_API_URL=https://api.example.com/api when the API
+// lives on another domain.
+const resolveApiUrl = () => {
+  const url = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+  // An https page cannot call a plain-http API on another host (mixed content), so upgrade it.
+  // http://localhost is still allowed by browsers, which keeps local development working.
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    /^http:\/\//.test(url) &&
+    !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)
+  ) {
+    return url.replace(/^http:/, 'https:');
+  }
+  return url;
+};
+
+export const API_URL = resolveApiUrl();
 
 // App Info
 export const APP_NAME = 'HAMROLOK BAZAR';
@@ -78,9 +96,18 @@ export const SORT_OPTIONS = [
   { value: 'rating', label: 'Highest Rated' },
 ];
 
+// Delivery (must match server/src/controllers/orderController.js)
+export const FREE_DELIVERY_THRESHOLD = 5000;
+export const DELIVERY_FEE = 150;
+
 // Pagination
 export const DEFAULT_PAGE_SIZE = 12;
 
-// Image Placeholder
-export const PLACEHOLDER_IMAGE = 'https://placehold.co/400x400/F8F4EC/8B1E3F?text=No+Image';
-export const AVATAR_PLACEHOLDER = 'https://placehold.co/200x200/F8F4EC/8B1E3F?text=User';
+// Image Placeholders — inline SVGs so they work offline and never 404
+const svgPlaceholder = (label) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" fill="#F3EFE6"/><g fill="none" stroke="#1B4332" stroke-opacity=".35" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M140 170h120l-10 110H150z"/><path d="M175 170v-18a25 25 0 0 1 50 0v18"/></g><text x="200" y="330" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#1B4332" fill-opacity=".5">${label}</text></svg>`
+  )}`;
+
+export const PLACEHOLDER_IMAGE = svgPlaceholder('Handmade');
+export const AVATAR_PLACEHOLDER = svgPlaceholder('User');

@@ -44,6 +44,7 @@ const AdminOrders = () => {
   useEffect(() => { fetchOrders(); }, [filterStatus]);
 
   const handleStatusUpdate = async (orderId, newStatus, extra = {}) => {
+    if (newStatus === 'CANCELLED' && !window.confirm('Cancel this order? The customer will be notified.')) return;
     setUpdatingId(orderId);
     try {
       await api.put(`/orders/${orderId}/status`, { status: newStatus, ...extra });
@@ -126,7 +127,13 @@ const AdminOrders = () => {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-4">
                         <div>
-                          <p className="font-bold text-text text-sm">{order.orderNumber}</p>
+                          <Link
+                            to={`/orders/${order.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-bold text-text text-sm hover:text-primary hover:underline"
+                          >
+                            {order.orderNumber}
+                          </Link>
                           <p className="text-[10px] text-text-muted mt-0.5">
                             {order.user?.firstName} {order.user?.lastName} • {order.user?.email}
                           </p>
@@ -191,8 +198,8 @@ const AdminOrders = () => {
                         <h4 className="font-bold text-xs text-text-light uppercase tracking-wider mb-2">Order Items</h4>
                         <div className="text-xs text-text-light">
                           {order.items?.map((item, i) => (
-                            <div key={i} className="flex justify-between py-1">
-                              <span>{item.quantity}x items</span>
+                            <div key={i} className="flex justify-between gap-3 py-1">
+                              <span>{item.quantity}× {item.product?.name || 'Item'}</span>
                               <span className="font-bold text-text">{formatPrice(item.total)}</span>
                             </div>
                           ))}

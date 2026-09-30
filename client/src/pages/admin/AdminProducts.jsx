@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HiOutlinePencil, HiOutlineTrash, HiOutlinePlus, HiOutlineSearch } from 'react-icons/hi';
+import { HiOutlinePencil, HiOutlineTrash, HiOutlineSearch } from 'react-icons/hi';
 import productService from '../../services/productService';
-import { adminService } from '../../services/dataService';
-import { formatPrice } from '../../utils/helpers';
+import { adminService, categoryService } from '../../services/dataService';
+import { formatPrice, getProductImage, handleImageError } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const AdminProducts = () => {
@@ -12,8 +12,10 @@ const AdminProducts = () => {
   const [search, setSearch] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
-    name: '', price: '', comparePrice: '', description: '', materials: '', categoryId: '', isFeatured: false,
+    name: '', price: '', comparePrice: '', description: '', materials: '', categoryId: '', isFeatured: false, isActive: true,
   });
 
   const fetchProducts = async () => {
@@ -24,7 +26,13 @@ const AdminProducts = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => {
+    fetchProducts();
+    categoryService
+      .getCategories()
+      .then((res) => setCategories(res.data.data || []))
+      .catch(() => setCategories([]));
+  }, []);
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -40,30 +48,42 @@ const AdminProducts = () => {
       materials: product.materials || '',
       categoryId: product.categoryId || '',
       isFeatured: product.isFeatured,
+      isActive: product.isActive !== false,
     });
     setShowForm(true);
   };
 
   const handleSave = async () => {
+    if (!editingProduct) return;
+    const price = parseFloat(formData.price);
+    const comparePrice = formData.comparePrice === '' ? null : parseFloat(formData.comparePrice);
+    if (!formData.name.trim()) return toast.error('Product name is required');
+    if (!(price > 0)) return toast.error('Enter a valid price');
+    if (comparePrice !== null && !(comparePrice > price)) {
+      return toast.error('Compare price must be higher than the price');
+    }
+
+    setSaving(true);
     try {
-      if (editingProduct) {
-        await productService.updateProduct(editingProduct.id, {
-          ...formData,
-          price: parseFloat(formData.price),
-          comparePrice: formData.comparePrice ? parseFloat(formData.comparePrice) : undefined,
-        });
-        toast.success('Product updated!');
-      }
+      await productService.updateProduct(editingProduct.id, {
+        ...formData,
+        name: formData.name.trim(),
+        price,
+        comparePrice,
+      });
+      toast.success('Product updated!');
       setShowForm(false);
       setEditingProduct(null);
       fetchProducts();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save product');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
     try {
       await productService.deleteProduct(id);
       toast.success('Product deleted');
@@ -131,6 +151,15 @@ const AdminProducts = () => {
                   </div>
                 </div>
                 <div>
+                  <label className="text-xs font-semibold text-text-light">Category</label>
+                  <select value={formData.categoryId} onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                    className="w-full p-2.5 border border-border rounded-xl text-sm mt-1 bg-white">
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="text-xs font-semibold text-text-light">Materials</label>
                   <input type="text" value={formData.materials} onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
                     className="w-full p-2.5 border border-border rounded-xl text-sm mt-1" />
@@ -145,10 +174,15 @@ const AdminProducts = () => {
                     className="rounded border-border" />
                   <span className="text-xs font-semibold text-text-light">Featured Product</span>
                 </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="rounded border-border" />
+                  <span className="text-xs font-semibold text-text-light">Visible on marketplace</span>
+                </label>
               </div>
               <div className="flex gap-2 mt-5">
-                <button onClick={handleSave} className="px-5 py-2.5 bg-primary text-white font-semibold rounded-xl text-xs">
-                  Save Changes
+                <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-primary text-white font-semibold rounded-xl text-xs disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Save Changes'}
                 </button>
                 <button onClick={() => { setShowForm(false); setEditingProduct(null); }}
                   className="px-5 py-2.5 border border-border text-text font-semibold rounded-xl text-xs">
@@ -180,13 +214,17 @@ const AdminProducts = () => {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={product.images?.[0]?.url || 'https://placehold.co/48x48'}
+                          src={getProductImage(product)}
                           alt={product.name}
+                          onError={handleImageError}
                           className="w-10 h-10 rounded-lg object-cover bg-surface"
                         />
                         <div>
                           <p className="font-bold text-text line-clamp-1 max-w-[200px]">{product.name}</p>
-                          <p className="text-[10px] text-text-muted">{product.slug}</p>
+                          <p className="text-[10px] text-text-muted">
+                            {product.seller?.shopName || product.slug}
+                            {product.isActive === false && <span className="ml-1.5 font-bold text-error">· HIDDEN</span>}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -219,7 +257,7 @@ const AdminProducts = () => {
                           className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors" title="Edit">
                           <HiOutlinePencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(product.id)}
+                        <button onClick={() => handleDelete(product.id, product.name)}
                           className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors" title="Delete">
                           <HiOutlineTrash className="w-4 h-4" />
                         </button>

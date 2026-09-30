@@ -1,17 +1,38 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { HiOutlineTrash, HiOutlineArrowRight, HiOutlineShoppingBag } from 'react-icons/hi';
 import { useCart } from '../../context/CartContext';
-import { formatPrice } from '../../utils/helpers';
+import { FREE_DELIVERY_THRESHOLD, DELIVERY_FEE } from '../../utils/constants';
+import { formatPrice, getProductImage, handleImageError } from '../../utils/helpers';
 
 const Cart = () => {
   const { cart, loading, updateQuantity, removeItem, clearCart, subtotal, itemCount } = useCart();
   const navigate = useNavigate();
 
-  const deliveryFee = subtotal >= 5000 || itemCount === 0 ? 0 : 150;
+  const [busyItemId, setBusyItemId] = useState(null);
+
+  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD || itemCount === 0 ? 0 : DELIVERY_FEE;
   const grandTotal = subtotal + deliveryFee;
 
-  if (loading) {
+  const changeQuantity = async (item, quantity) => {
+    setBusyItemId(item.id);
+    await updateQuantity(item.id, quantity);
+    setBusyItemId(null);
+  };
+
+  const handleRemove = async (item) => {
+    setBusyItemId(item.id);
+    await removeItem(item.id);
+    setBusyItemId(null);
+  };
+
+  const handleClear = () => {
+    if (window.confirm('Remove all items from your cart?')) clearCart();
+  };
+
+  // Only block the page on the very first load; later refreshes update in place
+  if (loading && !cart) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -58,8 +79,9 @@ const Cart = () => {
               >
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <img
-                    src={item.product.images?.[0]?.url || 'https://placehold.co/100x100'}
+                    src={getProductImage(item.product)}
                     alt={item.product.name}
+                    onError={handleImageError}
                     className="w-20 h-20 rounded-xl object-cover bg-surface shrink-0"
                   />
                   <div>
@@ -70,10 +92,9 @@ const Cart = () => {
                       {item.product.name}
                     </Link>
                     <p className="text-xs text-text-muted mt-1">
-                      Seller: {item.product.seller?.shopName || 'Nepalese Artisan'}
-                    </p>
-                    <p className="text-sm font-bold text-primary mt-1">
-                      {formatPrice(item.product.price)}
+                      {item.product.inventory && item.product.inventory.quantity < item.quantity
+                        ? <span className="text-error font-semibold">Only {item.product.inventory.quantity} left in stock</span>
+                        : `${formatPrice(item.product.price)} each`}
                     </p>
                   </div>
                 </div>
@@ -82,15 +103,22 @@ const Cart = () => {
                 <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">
                   <div className="flex items-center border border-border rounded-xl bg-surface">
                     <button
-                      onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                      className="px-3 py-1 font-bold text-text hover:bg-white rounded-l-xl"
+                      onClick={() => changeQuantity(item, item.quantity - 1)}
+                      disabled={item.quantity <= 1 || busyItemId === item.id}
+                      className="px-3 py-1 font-bold text-text hover:bg-white rounded-l-xl disabled:opacity-40"
+                      aria-label="Decrease quantity"
                     >
                       -
                     </button>
-                    <span className="px-3 text-sm font-semibold">{item.quantity}</span>
+                    <span className="px-3 text-sm font-semibold" aria-live="polite">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="px-3 py-1 font-bold text-text hover:bg-white rounded-r-xl"
+                      onClick={() => changeQuantity(item, item.quantity + 1)}
+                      disabled={
+                        busyItemId === item.id ||
+                        (item.product.inventory && item.quantity >= item.product.inventory.quantity)
+                      }
+                      className="px-3 py-1 font-bold text-text hover:bg-white rounded-r-xl disabled:opacity-40"
+                      aria-label="Increase quantity"
                     >
                       +
                     </button>
@@ -101,9 +129,11 @@ const Cart = () => {
                   </span>
 
                   <button
-                    onClick={() => removeItem(item.id)}
-                    className="p-2 text-text-muted hover:text-error transition-colors"
-                    title="Remove Item"
+                    onClick={() => handleRemove(item)}
+                    disabled={busyItemId === item.id}
+                    className="p-2 text-text-muted hover:text-error transition-colors disabled:opacity-40"
+                    title="Remove item"
+                    aria-label={`Remove ${item.product.name}`}
                   >
                     <HiOutlineTrash className="w-5 h-5" />
                   </button>
@@ -113,7 +143,7 @@ const Cart = () => {
 
             <div className="flex justify-between items-center pt-4">
               <button
-                onClick={clearCart}
+                onClick={handleClear}
                 className="text-xs font-semibold text-error hover:underline"
               >
                 Clear Entire Cart
@@ -143,9 +173,9 @@ const Cart = () => {
                   )}
                 </span>
               </div>
-              {subtotal < 5000 && (
+              {subtotal < FREE_DELIVERY_THRESHOLD && (
                 <p className="text-[11px] text-text-muted italic">
-                  Free delivery on orders over NPR 5,000!
+                  Add {formatPrice(FREE_DELIVERY_THRESHOLD - subtotal)} more for free delivery.
                 </p>
               )}
             </div>

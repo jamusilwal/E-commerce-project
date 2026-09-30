@@ -224,7 +224,7 @@ export const getAllOrders = asyncHandler(async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { firstName: true, lastName: true, email: true } },
-        items: { select: { quantity: true, total: true } },
+        items: { select: { quantity: true, total: true, product: { select: { name: true, slug: true } } } },
         payment: {
           select: {
             id: true,

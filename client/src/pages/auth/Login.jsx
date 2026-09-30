@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import {
@@ -12,12 +12,21 @@ import {
   HiOutlineShieldCheck,
 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
-import { APP_NAME } from '../../utils/constants';
+import Logo from '../../components/common/Logo';
+
+// Demo admin credentials are only pre-filled in development builds
+const DEMO_ADMIN = import.meta.env.DEV
+  ? { email: 'admin@hamrolokbazar.com', password: 'Admin@123' }
+  : null;
 
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const redirectTo = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search || ''}`
+    : null;
 
   const [selectedRoleTab, setSelectedRoleTab] = useState('CUSTOMER');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,8 +43,10 @@ const Login = () => {
     const roleParam = searchParams.get('role');
     if (roleParam === 'admin') {
       setSelectedRoleTab('ADMIN');
-      setValue('email', 'admin@hamrolokbazar.com');
-      setValue('password', 'Admin@123');
+      if (DEMO_ADMIN) {
+        setValue('email', DEMO_ADMIN.email);
+        setValue('password', DEMO_ADMIN.password);
+      }
     } else if (roleParam === 'seller') {
       setSelectedRoleTab('SELLER');
     }
@@ -43,9 +54,9 @@ const Login = () => {
 
   const handleRoleTabChange = (role) => {
     setSelectedRoleTab(role);
-    if (role === 'ADMIN') {
-      setValue('email', 'admin@hamrolokbazar.com');
-      setValue('password', 'Admin@123');
+    if (role === 'ADMIN' && DEMO_ADMIN) {
+      setValue('email', DEMO_ADMIN.email);
+      setValue('password', DEMO_ADMIN.password);
     }
   };
 
@@ -53,7 +64,9 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const user = await login(data.email, data.password);
-      if (user.role === 'ADMIN') {
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+      } else if (user.role === 'ADMIN') {
         navigate('/admin/dashboard');
       } else if (user.role === 'SELLER') {
         navigate('/seller/dashboard');
@@ -68,7 +81,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary via-white to-secondary flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-secondary via-background to-secondary flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -77,14 +90,9 @@ const Login = () => {
       >
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <Link to="/" className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl font-[Playfair_Display]">H</span>
-            </div>
-            <span className="text-xl font-bold text-primary font-[Playfair_Display]">
-              {APP_NAME}
-            </span>
-          </Link>
+          <div className="flex justify-center mb-4">
+            <Logo />
+          </div>
           <h2 className="text-2xl font-bold text-text font-[Playfair_Display]">
             {selectedRoleTab === 'ADMIN' ? 'Admin Portal Login' : 'Welcome Back'}
           </h2>
@@ -133,17 +141,17 @@ const Login = () => {
         </div>
 
         {/* Admin Quick Fill Demo Banner */}
-        {selectedRoleTab === 'ADMIN' && (
+        {selectedRoleTab === 'ADMIN' && DEMO_ADMIN && (
           <div className="mb-5 p-3 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-900 flex items-center justify-between">
             <div>
               <p className="font-bold">Admin Credentials Pre-filled</p>
-              <p className="text-[11px] text-purple-700">admin@hamrolokbazar.com</p>
+              <p className="text-[11px] text-purple-700">{DEMO_ADMIN?.email} (development only)</p>
             </div>
             <button
               type="button"
               onClick={() => {
-                setValue('email', 'admin@hamrolokbazar.com');
-                setValue('password', 'Admin@123');
+                setValue('email', DEMO_ADMIN.email);
+                setValue('password', DEMO_ADMIN.password);
               }}
               className="px-2.5 py-1 bg-purple-600 text-white rounded-lg text-[10px] font-bold shadow-sm"
             >

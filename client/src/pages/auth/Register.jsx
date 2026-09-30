@@ -12,7 +12,7 @@ import {
   HiOutlineShoppingBag,
 } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
-import { APP_NAME } from '../../utils/constants';
+import Logo from '../../components/common/Logo';
 
 const Register = () => {
   const { register: registerAuth } = useAuth();
@@ -42,7 +42,7 @@ const Register = () => {
         role: selectedRole,
       };
 
-      const user = await registerAuth(payload);
+      await registerAuth(payload);
       if (selectedRole === 'SELLER') {
         navigate('/seller/register');
       } else {
@@ -56,7 +56,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-secondary via-white to-secondary flex items-center justify-center p-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-secondary via-background to-secondary flex items-center justify-center p-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -65,14 +65,9 @@ const Register = () => {
       >
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <Link to="/" className="inline-flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl font-[Playfair_Display]">H</span>
-            </div>
-            <span className="text-xl font-bold text-primary font-[Playfair_Display]">
-              {APP_NAME}
-            </span>
-          </Link>
+          <div className="flex justify-center mb-4">
+            <Logo />
+          </div>
           <h2 className="text-2xl font-bold text-text font-[Playfair_Display]">
             Create an Account
           </h2>
@@ -234,6 +229,7 @@ const Register = () => {
                 className={`w-full pl-10 pr-3 py-2.5 rounded-xl border ${errors.phone ? 'border-error' : 'border-border'
                   } bg-surface text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all`}
                 {...register('phone', {
+                  setValueAs: (v) => (v || '').replace(/[\s-]/g, ''),
                   pattern: {
                     value: /^(\+977)?[9][6-9]\d{8}$/,
                     message: 'Enter a valid Nepalese phone number',

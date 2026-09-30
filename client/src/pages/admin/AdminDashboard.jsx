@@ -9,7 +9,6 @@ import {
   HiOutlineViewGrid,
   HiOutlineTruck,
   HiOutlineUsers,
-  HiOutlineChartBar,
   HiOutlineClipboardList,
   HiOutlineTag,
   HiOutlineCollection,
@@ -148,7 +147,7 @@ const AdminDashboard = () => {
                   recentOrders.map((ord) => (
                     <tr key={ord.id} className="hover:bg-surface/50">
                       <td className="py-3 px-2">
-                        <Link to={`/admin/orders`} className="font-bold text-primary hover:underline">
+                        <Link to={`/orders/${ord.id}`} className="font-bold text-primary hover:underline">
                           {ord.orderNumber}
                         </Link>
                       </td>
