@@ -2,6 +2,7 @@ import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import app from './app.js';
 import env from './config/env.js';
 import prisma from './config/db.js';
@@ -13,11 +14,15 @@ let redirectServer;
 
 /**
  * Read the TLS key/certificate when SSL_KEY_PATH and SSL_CERT_PATH are set.
- * Relative paths are resolved from the server/ folder.
+ * Relative paths are resolved from the server/ folder or process.cwd().
  */
 const loadTlsOptions = () => {
   const read = (file, name) => {
-    const resolved = path.resolve(process.cwd(), file);
+    let resolved = path.resolve(process.cwd(), file);
+    if (!fs.existsSync(resolved)) {
+      const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+      resolved = path.resolve(serverDir, file);
+    }
     if (!fs.existsSync(resolved)) {
       throw new Error(`${name} not found at ${resolved}. Run "npm run cert:dev" or fix the path in .env`);
     }

@@ -6,13 +6,11 @@
 // lives on another domain.
 const resolveApiUrl = () => {
   const url = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
-  // An https page cannot call a plain-http API on another host (mixed content), so upgrade it.
-  // http://localhost is still allowed by browsers, which keeps local development working.
+  // An https page cannot call a plain-http API (mixed content), so upgrade it.
   if (
     typeof window !== 'undefined' &&
     window.location.protocol === 'https:' &&
-    /^http:\/\//.test(url) &&
-    !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)
+    /^http:\/\//.test(url)
   ) {
     return url.replace(/^http:/, 'https:');
   }

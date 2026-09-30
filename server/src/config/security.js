@@ -36,7 +36,8 @@ export const enforceHttps = (req, res, next) => {
   if (!['GET', 'HEAD'].includes(req.method)) {
     return res.status(403).json({ success: false, message: 'HTTPS is required.' });
   }
-  return res.redirect(308, `https://${req.hostname}${req.originalUrl}`);
+  const host = req.get('host') || req.hostname;
+  return res.redirect(308, `https://${host}${req.originalUrl}`);
 };
 
 export const securityHeaders = helmet({
